@@ -538,7 +538,26 @@ const AppP = NATIVE ? CAPX.Plugins.App : null;
 const HAP = NATIVE ? CAPX.Plugins.Haptics : null;
 const SB = NATIVE ? CAPX.Plugins.StatusBar : null;
 const buzz = (s) => { try { HAP && HAP.impact({style: s || 'LIGHT'}); } catch(e){} };
-let notif = {perm: NATIVE ? 'prompt' : 'web', exact: 'granted'};
+const PUSH_URL = 'https://rumbo-push.aldairarestegui24.workers.dev';
+const VAPID_PUBLIC = 'BKHXFyN3pNY8vAzCXNXtdoHzRxeCoggeBnUnMvPrfbD3YjiT8qIwPfxsqBz4jIzVcVzV1NV3pqGFZupRD3hhIdE';
+/* avisos push en la versión web (iPhone con la app agregada a inicio, Android/PC en el navegador) */
+const PUSH_OK = !NATIVE && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && location.protocol === 'https:';
+let notif = {perm: NATIVE ? 'prompt' : (PUSH_OK ? Notification.permission : 'web'), exact: 'granted'};
+const webOn = () => PUSH_OK && S.remindOn && Notification.permission === 'granted';
+async function webSub(create){
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub && create){
+    const k = VAPID_PUBLIC.replace(/-/g,'+').replace(/_/g,'/'), raw = atob(k + '='.repeat((4 - k.length % 4) % 4));
+    sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey: Uint8Array.from(raw, c => c.charCodeAt(0))});
+  }
+  return sub;
+}
+async function pushPost(path, extra){
+  const sub = await webSub(false); if (!sub) throw new Error('sin suscripción');
+  const r = await fetch(PUSH_URL + path, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({subscription: sub.toJSON(), ...extra})});
+  if (!r.ok) throw new Error('servidor '+r.status); return r.json();
+}
 async function refreshNotifState(){
   if (!LN) return;
   try { notif.perm = (await LN.checkPermissions()).display; } catch(e){}
@@ -546,7 +565,15 @@ async function refreshNotifState(){
   if (!sheet && !ob) render();
 }
 async function enableReminders(){
-  if (!LN){ exportICS(); return; }
+  if (!LN){
+    if (!PUSH_OK){ if (IS_IOS && !STANDALONE) toast('Primero agrégala a tu inicio: Compartir y luego Agregar a inicio'); else exportICS(); return false; }
+    let p;
+    try { p = await Notification.requestPermission(); } catch(e){ p = Notification.permission; }
+    notif.perm = p;
+    if (p !== 'granted'){ toast('Permite las notificaciones de Rumbo en los ajustes del celular'); render(); return false; }
+    try { await webSub(true); S.remindOn = true; save(); await scheduleAll(); render(); toast('Recordatorios activados'); return true; }
+    catch(e){ console.error(e); toast('No se pudieron activar los avisos. Revisa tu conexión.'); return false; }
+  }
   let p = notif.perm;
   try { if (p !== 'granted') p = (await LN.requestPermissions()).display; } catch(e){}
   notif.perm = p;
@@ -561,8 +588,29 @@ function reminderText(a){
 }
 let scheduling = Promise.resolve();
 function scheduleAll(){ scheduling = scheduling.then(doSchedule, doSchedule); return scheduling; }
+function upcoming(days){
+  const list = [], now = Date.now(), d0 = dayOnly(new Date());
+  for (let i = 0; i < days; i++){
+    const d = addDays(d0, i);
+    for (const a of actsFor(d)){
+      if (a.remind === null || a.remind === undefined) continue;
+      const at = new Date(d); at.setMinutes(toMin(a.start) - a.remind);
+      if (at.getTime() <= now + 5000) continue;
+      list.push({at, title: a.remind ? 'En '+a.remind+' min: '+a.title : a.title+' · '+fmtFull(a.start), body: reminderText(a), act: a.id});
+    }
+  }
+  return list;
+}
 async function doSchedule(){
-  if (!LN) return;
+  if (!LN){
+    if (!PUSH_OK || Notification.permission !== 'granted') return;
+    try {
+      if (!S.remindOn){ const sub = await webSub(false); if (sub) await fetch(PUSH_URL+'/unsubscribe', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({subscription: sub.toJSON()})}); return; }
+      await webSub(true);
+      await pushPost('/sync', {items: upcoming(21).map(x => ({at: x.at.getTime(), title: x.title, body: x.body, act: x.act}))});
+    } catch(e){ console.error(e); }
+    return;
+  }
   try {
     const pend = await LN.getPending();
     if (pend.notifications.length) await LN.cancel({notifications: pend.notifications.map(n => ({id:n.id}))});
@@ -584,7 +632,13 @@ async function doSchedule(){
   } catch(e){ console.error(e); toast('No se pudieron programar los avisos'); }
 }
 async function testReminder(){
-  if (!LN){ toast('La prueba funciona en la app de Android'); return; }
+  if (!LN){
+    if (!PUSH_OK){ toast(IS_IOS ? 'Primero agrégala a tu inicio desde Safari' : 'Tu navegador no permite avisos'); return; }
+    if (!webOn()){ const ok = await enableReminders(); if (!ok) return; }
+    try { const r = await pushPost('/test', {}); toast(r.ok ? 'Enviado. Te llega en unos segundos.' : 'No se pudo enviar la prueba'); }
+    catch(e){ toast('No se pudo enviar la prueba. Revisa tu conexión.'); }
+    return;
+  }
   if (notif.perm !== 'granted'){ const ok = await enableReminders(); if (!ok) return; }
   try { await LN.createChannel({id:'rumbo', name:'Recordatorios', importance:5, visibility:1, vibration:true}); } catch(e){}
   await LN.schedule({notifications:[{id:99999, channelId:'rumbo', title:'Así se ve un recordatorio', body:'Rumbo te avisará antes de cada actividad.', schedule:{at:new Date(Date.now()+5000), allowWhileIdle:true}}]});
@@ -632,9 +686,10 @@ function banner(){
     if (notif.exact === 'denied') return '<div class="banner st"><p>Para que los avisos lleguen a la hora exacta, permite <b>alarmas y recordatorios</b> para Rumbo.</p><button class="btn sm" data-exact>Permitir</button></div>';
     return '';
   }
+  if (PUSH_OK && (STANDALONE || !IS_ANDROID) && !webOn()) return '<div class="banner st"><p><b>Activa tus recordatorios.</b> Rumbo te avisa antes de cada actividad, aunque la app esté cerrada.</p><button class="btn sm" data-remind-on>Activar recordatorios</button></div>';
   if (IS_ANDROID && !STANDALONE) return '<div class="banner st"><p><b>¿Tienes Android?</b> Descarga la app: los recordatorios suenan aunque esté cerrada.</p><a class="btn sm" href="'+APK_URL+'" style="text-decoration:none">Descargar app para Android</a></div>';
   if (IS_IOS && !STANDALONE) return '<div class="banner st"><p><b>Instálala en tu iPhone.</b> En Safari toca <b>Compartir</b> y luego <b>Agregar a inicio</b>.</p></div>';
-  if (!S.icsAt) return '<div class="banner st"><p><b>Activa tus avisos.</b> Rumbo pone tus actividades en el calendario del celular con alarma.</p><button class="btn sm" data-ics>Agregar avisos al calendario</button></div>';
+  if (!PUSH_OK && !S.icsAt) return '<div class="banner st"><p><b>Activa tus avisos.</b> Rumbo pone tus actividades en el calendario del celular con alarma.</p><button class="btn sm" data-ics>Agregar avisos al calendario</button></div>';
   return '';
 }
 
@@ -704,8 +759,9 @@ function viewSemana(){
 }
 function viewTu(){
   const on = S.remindOn && notif.perm === 'granted';
-  const avisos = NATIVE
-    ? '<div class="list"><div class="li"><label for="remindToggle"><b>Recordatorios</b><br><span class="muted" style="font-size:14px">'+(on?'Te avisa antes de cada actividad':'Apagados')+'</span></label><input type="checkbox" class="switch" id="remindToggle" data-remind-toggle '+(on?'checked':'')+'></div>'+
+  const on2 = NATIVE ? on : webOn();
+  const avisos = (NATIVE || (PUSH_OK && (STANDALONE || !IS_IOS)))
+    ? '<div class="list"><div class="li"><label for="remindToggle"><b>Recordatorios</b><br><span class="muted" style="font-size:14px">'+(on2?'Te avisa antes de cada actividad':'Apagados')+'</span></label><input type="checkbox" class="switch" id="remindToggle" data-remind-toggle '+(on2?'checked':'')+'></div>'+
       '<button class="item" data-remind-test><span class="grow"><b>Probar un recordatorio</b><span>Te llega uno en 5 segundos</span></span>'+CHEV+'</button></div>'
     : '<div class="list"><button class="item" data-ics><span class="grow"><b>'+(S.icsAt?'Actualizar avisos en el calendario':'Agregar avisos al calendario')+'</b><span>'+(S.icsAt?'Si cambiaste horarios, borra los eventos de Rumbo del calendario y vuelve a agregarlos':'Cada actividad queda en tu calendario con alarma')+'</span></span>'+CHEV+'</button>'+
       (IS_IOS ? '' : '<a class="item" href="'+APK_URL+'"><span class="grow"><b>App para Android</b><span>Con recordatorios automáticos</span></span>'+CHEV+'</a>')+'</div>';
@@ -928,6 +984,9 @@ function celebrate(d, prevPct){
     Promise.resolve(LN.createChannel({id:'rumbo', name:'Recordatorios', description:'Avisos de tus actividades', importance:5, visibility:1, vibration:true})).catch(()=>{})
       .then(() => LN.schedule({notifications:[n]})).catch(()=>{});
   }
+  else if (webOn()){
+    navigator.serviceWorker.ready.then(reg => reg.showNotification(pct >= 100 ? '100% '+when+' 🏆' : 'Llevas '+pct+'% '+when+' 🔥', {body: c.msg, icon:'icons/icon-192.png', badge:'icons/icon-192.png', tag:'logro'})).catch(()=>{});
+  }
   save();
   // tarjeta dentro de la app
   const C = 2*Math.PI*44, el = $('#cheer');
@@ -1119,8 +1178,11 @@ if (LN){
   });
 }
 if (!NATIVE && 'serviceWorker' in navigator && location.protocol === 'https:'){
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then(() => { if (webOn()) scheduleAll(); }).catch(() => {}));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible'){ if (!sheet && !ob) render(); if (webOn()) scheduleAll(); } });
+  navigator.serviceWorker.addEventListener('message', ev => { const id = ev.data && ev.data.open; if (id && actById(id)){ sel = dayOnly(new Date()); view = 'hoy'; render(); openSheet({kind:'act', id}); } });
 }
+{ const o = new URLSearchParams(location.search).get('open'); if (o) setTimeout(() => { if (S.onboarded && actById(o)){ sel = dayOnly(new Date()); openSheet({kind:'act', id:o}); } history.replaceState(null, '', location.pathname); }, 300); }
 
 render();
 if (!S.onboarded) startOnboarding(false);
