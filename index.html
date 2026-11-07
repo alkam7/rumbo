@@ -286,6 +286,22 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .sleepnote{display:flex;align-items:center;gap:10px;font-size:14.5px;color:var(--muted)}
 .sleepnote b{color:var(--ink)}
 
+/* tarjeta de logro */
+.cheer{position:fixed;left:0;right:0;top:calc(14px + env(safe-area-inset-top, 0px));z-index:70;display:flex;justify-content:center;padding:0 16px;pointer-events:none;opacity:0;transform:translateY(-24px) scale(.96);transition:opacity .35s var(--ease),transform .45s var(--ease)}
+.cheer.show{opacity:1;transform:none;pointer-events:auto}
+.cheer-card{width:100%;max-width:440px;display:flex;align-items:center;gap:14px;padding:14px 18px 14px 14px;border-radius:28px;color:#fff;
+  background:linear-gradient(165deg,rgba(60,52,80,.78),rgba(22,20,30,.86)) padding-box,linear-gradient(145deg,rgba(255,255,255,.42),rgba(255,255,255,.06) 40%,rgba(255,140,90,.4)) border-box;border:1px solid transparent;
+  -webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 24px 50px -18px rgba(0,0,0,.9),0 0 40px -18px #FF4D2E}
+.cheer-card.full{background:linear-gradient(150deg,#FF8A5B,#E8381F) padding-box,linear-gradient(145deg,rgba(255,255,255,.6),rgba(255,255,255,.1)) border-box;box-shadow:0 0 60px -12px #FF4D2E}
+.cring{position:relative;width:70px;height:70px;flex:none}
+.cring svg{width:70px;height:70px;transform:rotate(-90deg)}
+.cring .v{transition:stroke-dashoffset .9s var(--ease);filter:drop-shadow(0 0 5px #FF6A45)}
+.cheer-card.full .cring .v{stroke:#fff;filter:none}
+.cring b{position:absolute;inset:0;display:grid;place-items:center;font:700 17px var(--fd);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ctext{min-width:0;display:flex;flex-direction:column;gap:2px}
+.ctext .ct{font:700 18px var(--fd);letter-spacing:-.02em}
+.ctext p{margin:0;font-size:14.5px;line-height:1.35;opacity:.92}
+.ctext small{font-size:12px;opacity:.65;margin-top:2px}
 .toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom, 0px));transform:translate(-50%,20px);opacity:0;z-index:60;background:#fff;color:#09090B;padding:12px 18px;border-radius:999px;font-size:14.5px;font-weight:600;transition:all .25s var(--ease);pointer-events:none;max-width:calc(100% - 40px);text-align:center;box-shadow:0 10px 30px -10px rgba(0,0,0,.6)}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 /* ===== vidrio premium ===== */
@@ -342,6 +358,7 @@ body{font-feature-settings:"kern","calt"}
 <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Detalle" hidden></section>
 <div class="ob" id="ob" hidden></div>
 <div class="toast" id="toast" role="status"></div>
+<div class="cheer" id="cheer" role="status" aria-live="polite" hidden></div>
 
 <script>
 /* ---------- catálogo ---------- */
@@ -698,6 +715,7 @@ function viewTu(){
   const cs = S.classes.map(c => '<button class="item" data-edit-class="'+c.id+'">'+icBox('clase')+'<span class="grow"><b>'+esc(c.name)+'</b><span>'+esc([c.room,c.who].filter(Boolean).join(' · ') || 'Sin aula')+'</span></span>'+CHEV+'</button>').join('');
   return '<header class="page-h st"><h1>'+(S.name ? esc(S.name) : 'Tú')+'</h1><p>Tu semana, tus rutinas y tus avisos</p></header>'+
     '<section class="lib-sec st"><h3>Avisos</h3>'+avisos+'</section>'+
+    '<section class="lib-sec st"><h3>Logros</h3><div class="list"><div class="li"><label for="cheerToggle"><b>Mensajes de logro</b><br><span class="muted" style="font-size:14px">Tu % del día y un mensaje motivador cada vez que cumples algo</span></label><input type="checkbox" class="switch" id="cheerToggle" data-cheer-toggle '+(S.cheerOff?'':'checked')+'></div></div></section>'+
     '<section class="lib-sec st"><div class="hd"><h3>Mi semana</h3><button class="link" data-new>+ Agregar</button></div><div class="list">'+(acts||'<div class="li muted">Aún no tienes actividades.</div>')+'</div></section>'+
     '<section class="lib-sec st"><div class="hd"><h3>Rutinas de gym</h3><button class="link" data-edit-routine="">+ Nueva</button></div><div class="list">'+(rs||'<div class="li muted">Crea tu primera rutina o usa una plantilla desde el bloque de Gym.</div>')+'</div></section>'+
     '<section class="lib-sec st"><div class="hd"><h3>Mis clases</h3><button class="link" data-edit-class="">+ Nueva</button></div><div class="list">'+(cs||'<div class="li muted">Agrega tus materias para elegirlas en cada clase.</div>')+'</div></section>'+
@@ -885,6 +903,48 @@ function finishOnboarding(){
   if (S.remindOn) scheduleAll();
 }
 
+/* ---------- logros: mensaje motivador al completar una actividad ---------- */
+const CHEER = {
+  start: ['Arrancaste. Lo más difícil ya pasó.', 'Primer paso hecho. Así se construye un buen día.', 'Buen comienzo. Uno a la vez.', 'Ya estás en movimiento. No pares ahora.', 'Empezar es ganar la mitad.'],
+  mid:   ['Vas a mitad de camino. Mantén el ritmo.', 'Cada bloque cuenta. Sigue así.', 'Vas mejor de lo que crees.', 'La constancia le gana al talento. Sigue.', 'Hoy estás cumpliendo lo que te prometiste.'],
+  high:  ['Ya casi. Termina fuerte.', 'Te falta poco para cerrar el día.', 'Este es el tramo que separa a los que cumplen.', 'Un empujón más y lo tienes.', 'Lo estás logrando. No aflojes ahora.'],
+  full:  ['Esto es disciplina de verdad.', 'Cumpliste todo lo que planeaste. Así se hace.', '100%. Mañana, a repetirlo.', 'Día redondo. Tu yo del futuro te lo agradece.', 'Todo hecho. Descansa, te lo ganaste.']
+};
+const CHEER_TITLE = { start:'¡Buen arranque!', mid:'¡Vas muy bien!', high:'¡Ya casi!', full:'¡Día completo!' };
+function cheerFor(pct){
+  const tier = pct >= 100 ? 'full' : pct >= 70 ? 'high' : pct >= 35 ? 'mid' : 'start';
+  S.cheerIdx ??= {}; const i = (S.cheerIdx[tier] = ((S.cheerIdx[tier] ?? -1) + 1) % CHEER[tier].length);
+  let msg = CHEER[tier][i]; if (S.name && Math.random() < .5) msg = msg.replace(/\.$/, ', '+S.name+'.');
+  return {tier, title: CHEER_TITLE[tier], msg};
+}
+let cheerT;
+function celebrate(d, prevPct){
+  const st = dayStats(d), pct = st.total ? Math.round(st.done/st.total*100) : 0;
+  if (S.cheerOff){ toast(pct >= 100 ? 'Día completo' : 'Hecha · '+st.done+' de '+st.total); return; }
+  const c = cheerFor(pct), when = isToday(d) ? 'de tu día' : 'del '+DN[d.getDay()];
+  // notificación del celular (app de Android)
+  if (LN && notif.perm === 'granted'){
+    const n = {id: 80000 + Math.floor(Math.random()*9000), channelId:'rumbo', title: (pct >= 100 ? '100% '+when+' 🏆' : 'Llevas '+pct+'% '+when+' 🔥'), body: c.msg, schedule:{at:new Date(Date.now()+600)}};
+    Promise.resolve(LN.createChannel({id:'rumbo', name:'Recordatorios', description:'Avisos de tus actividades', importance:5, visibility:1, vibration:true})).catch(()=>{})
+      .then(() => LN.schedule({notifications:[n]})).catch(()=>{});
+  }
+  save();
+  // tarjeta dentro de la app
+  const C = 2*Math.PI*44, el = $('#cheer');
+  el.innerHTML = '<div class="cheer-card'+(c.tier==='full'?' full':'')+'"><div class="cring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="9"/>'+
+    '<circle class="v" cx="50" cy="50" r="44" fill="none" stroke="url(#cg)" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+(C*(1-prevPct/100))+'"/>'+
+    '<defs><linearGradient id="cg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB36B"/><stop offset="1" stop-color="#FF4D2E"/></linearGradient></defs></svg><b data-pct>'+prevPct+'%</b></div>'+
+    '<div class="ctext"><span class="ct">'+c.title+'</span><p>'+esc(c.msg)+'</p><small>'+st.done+' de '+st.total+' actividades '+when+'</small></div></div>';
+  el.hidden = false; requestAnimationFrame(() => { el.classList.add('show');
+    setTimeout(() => { const v = el.querySelector('.v'); if (v) v.style.strokeDashoffset = C*(1-pct/100);
+      const b = el.querySelector('[data-pct]'), t0 = performance.now();
+      const step = t => { const k = Math.min(1,(t-t0)/900), e = 1-Math.pow(1-k,3); if (b) b.textContent = Math.round(prevPct + (pct-prevPct)*e)+'%'; if (k < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step); }, 120); });
+  if (pct >= 100) buzz('HEAVY');
+  clearTimeout(cheerT); cheerT = setTimeout(hideCheer, pct >= 100 ? 4200 : 3200);
+}
+function hideCheer(){ const el = $('#cheer'); el.classList.remove('show'); setTimeout(() => { if (!el.classList.contains('show')) el.hidden = true; }, 300); }
+
 /* ---------- enfoque ---------- */
 let focus = null, focusLen = 25;
 function tick(){
@@ -919,6 +979,7 @@ function syncAny(p){ if (p === 'dr' || p === 'once') syncDraft(); else syncOb();
 
 document.addEventListener('click', ev => {
   if (ev.target.id === 'scrim'){ closeSheet(); return; }
+  if (ev.target.closest('#cheer')){ hideCheer(); return; }
   const b = ev.target.closest('button, [data-open]'); if (!b) return;
   const D = b.dataset;
 
@@ -947,8 +1008,9 @@ document.addEventListener('click', ev => {
   if (D.view){ view = D.view; animNext = true; render(); window.scrollTo(0,0); return; }
   if (D.day){ sel = new Date(D.day+'T00:00'); animNext = true; render(); return; }
   if (D.goto){ sel = new Date(D.goto+'T00:00'); view = 'hoy'; animNext = true; render(); window.scrollTo(0,0); return; }
-  if (D.done){ ev.stopPropagation(); const e = entry(sel, D.done); e.done = !e.done; save(); buzz(e.done ? 'MEDIUM' : 'LIGHT');
-    if (e.done){ const st = dayStats(sel); toast(st.done === st.total ? 'Día completo. Bien hecho.' : 'Hecha · '+st.done+' de '+st.total); }
+  if (D.done){ ev.stopPropagation(); const s0 = dayStats(sel), prev = s0.total ? Math.round(s0.done/s0.total*100) : 0;
+    const e = entry(sel, D.done); e.done = !e.done; save(); buzz(e.done ? 'MEDIUM' : 'LIGHT');
+    if (e.done) celebrate(sel, prev);
     sheet ? closeSheet() : render(); return; }
   if (D.open){ openSheet({kind:'act', id:D.open}); return; }
   if ('close' in D){ if (sheet && sheet.back){ sheet = {kind:'act', id:sheet.back}; renderSheet(); } else closeSheet(); return; }
@@ -1015,11 +1077,12 @@ document.addEventListener('click', ev => {
 
 document.addEventListener('change', ev => {
   const t = ev.target, D = t.dataset;
+  if ('cheerToggle' in D){ S.cheerOff = !t.checked; save(); toast(t.checked ? 'Mensajes de logro activados' : 'Mensajes de logro apagados'); return; }
   if ('remindToggle' in D){ if (t.checked) enableReminders(); else { S.remindOn = false; save(); scheduleAll(); render(); toast('Recordatorios apagados'); } return; }
   if (!sheet || sheet.kind !== 'act') return;
   const a = actById(sheet.id), e = entry(sel, a.id);
   if (D.ex !== undefined){ e.ex ??= {}; e.ex[D.ex] = t.checked; buzz(); const r = routineOf(sel,a);
-    if (r && r.ex.length && r.ex.every((_,i) => e.ex[i]) && !e.done){ e.done = true; buzz('MEDIUM'); toast('Rutina completa: '+r.name); }
+    if (r && r.ex.length && r.ex.every((_,i) => e.ex[i]) && !e.done){ const s0 = dayStats(sel), prev = s0.total ? Math.round(s0.done/s0.total*100) : 0; e.done = true; buzz('MEDIUM'); celebrate(sel, prev); }
     save(); renderSheet(); return; }
   if (D.chk){ e[D.chk] ??= {}; e[D.chk][D.i] = t.checked; buzz(); save(); renderSheet(); return; }
   if (D.prioOk !== undefined){ e.prio ??= []; e.prio[D.prioOk] = {...(e.prio[D.prioOk]||{t:''}), ok:t.checked}; buzz(); save(); renderSheet(); return; }
