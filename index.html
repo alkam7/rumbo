@@ -291,6 +291,9 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .pstep .btn{margin-top:6px;text-decoration:none}
 .pstep img{width:170px;max-width:100%;border-radius:16px;background:#fff;padding:8px;margin-top:6px}
 .pstep input{width:100%;margin-top:6px;border:1px solid var(--line);background:var(--card);border-radius:16px;padding:14px;font:700 20px var(--fd);letter-spacing:3px;text-transform:uppercase;text-align:center;outline:none}
+.hascode{margin-top:8px}.hascode summary{color:var(--muted);font-size:14px;cursor:pointer}
+.waiting{display:inline-block;width:10px;height:10px;border-radius:50%;background:#FF7A50;margin-right:8px;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25;transform:scale(.7)}}
 .payid{font:700 15px var(--fd);letter-spacing:1px;color:#fff}
 .trial{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:24px}
 .trial p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.4}
@@ -687,7 +690,7 @@ saveL();
 const trialLeft = () => Math.max(0, Math.ceil((L.start + TRIAL_DAYS*DAY - Date.now()) / DAY));
 const locked = () => !L.paid && Date.now() >= L.start + TRIAL_DAYS*DAY;
 const fmtPhone = n => String(n).replace(/(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3');
-function waLink(){ return 'https://wa.me/'+PAY.wa+'?text='+encodeURIComponent('Hola, ya yapeé '+PAY.price+' por Rumbo 🙌 Te mando la captura. Mi ID es '+L.id); }
+function waLink(){ return 'https://wa.me/'+PAY.wa+'?text='+encodeURIComponent('Hola, ya yapeé '+PAY.price+' por Rumbo 🙌 Te mando la captura.\nMi ID: '+L.id+'\nAprobar: '+PUSH_URL+'/admin#'+L.id); }
 function renderPay(closable){
   const lk = locked(), left = trialLeft(), box = $('#pay');
   const step1 = PAY.yape
@@ -701,14 +704,23 @@ function renderPay(closable){
     '<div class="price glass st"><b>'+PAY.price+'</b><span>Pago único.<br>Sin mensualidades.</span></div>'+
     '<div class="pstep glass st"><i>1</i><div>'+step1+'</div></div>'+
     '<div class="pstep glass st"><i>2</i><div><b>Mándame la captura</b><span>Por WhatsApp. El mensaje ya lleva tu ID: <span class="payid">'+L.id+'</span></span>'+
-      (PAY.wa ? '<a class="btn sm" href="'+waLink()+'" target="_blank" rel="noopener">Enviar por WhatsApp</a>' : '')+'</div></div>'+
-    '<div class="pstep glass st"><i>3</i><div><b>Escribe tu código</b><span>Te lo respondo en el chat. Solo funciona en este celular.</span>'+
-      '<input id="pay-code" placeholder="XXXX-XXXX" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="btn glow" data-pay-unlock>Activar Rumbo</button></div></div>'+
+      (PAY.wa ? '<a class="btn sm" data-pay-wa href="'+waLink()+'" target="_blank" rel="noopener">Enviar por WhatsApp</a>' : '')+'</div></div>'+
+    '<div class="pstep glass st"><i>3</i><div><b>Listo, se activa sola</b><span>'+(L.asked ? '<span class="waiting"></span>Esperando que confirme tu pago. Puedes cerrar la app: se desbloquea apenas lo apruebe.' : 'Apenas confirme tu pago, Rumbo se desbloquea sola en este celular. No tienes que hacer nada más.')+'</span>'+
+      '<details class="hascode"><summary>¿Te mandé un código?</summary><input id="pay-code" placeholder="XXXX-XXXX" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="btn glow" data-pay-unlock>Activar Rumbo</button></details></div></div>'+
     '<p class="muted st" style="font-size:13px;text-align:center;margin:4px 0 0">Tu ID: '+L.id+' · ¿Cambiaste de celular? Escríbeme y te ayudo.</p>'+
   '</div>';
-  box.hidden = false; $('#nav').hidden = true;
+  box.hidden = false; $('#nav').hidden = true; startPoll();
 }
 function hidePay(){ $('#pay').hidden = true; if (S.onboarded) $('#nav').hidden = false; }
+function paidNow(){ L.paid = true; L.paidAt = Date.now(); saveL(); hidePay(); buzz('HEAVY'); toast('¡Listo! Rumbo es tuya para siempre'); render(); if (S.remindOn) scheduleAll(); }
+/* pregunta al servidor si ya aprobaron el pago de este celular */
+async function checkPaid(){
+  if (L.paid) return;
+  try { const r = await fetch(PUSH_URL+'/status', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: L.id})});
+    const j = await r.json(); if (j.paid) paidNow(); } catch(e){}
+}
+let pollT = null;
+function startPoll(){ if (pollT || L.paid) return; checkPaid(); pollT = setInterval(() => { if (L.paid || $('#pay').hidden){ clearInterval(pollT); pollT = null; return; } checkPaid(); }, 8000); }
 async function unlock(){
   const inp = $('#pay-code'), code = (inp?.value || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
   if (code.length !== 8){ toast('El código tiene 8 letras y números'); return; }
@@ -716,7 +728,7 @@ async function unlock(){
   try {
     const r = await fetch(PUSH_URL+'/unlock', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: L.id, code})});
     const j = await r.json().catch(() => ({}));
-    if (j.ok){ L.paid = true; L.paidAt = Date.now(); saveL(); hidePay(); buzz('HEAVY'); toast('¡Listo! Rumbo es tuya para siempre'); render(); if (S.remindOn) scheduleAll(); return; }
+    if (j.ok){ paidNow(); return; }
     toast(j.error === 'limit' ? 'Muchos intentos. Prueba en una hora.' : 'Ese código no es válido para este celular');
   } catch(e){ toast('Sin conexión. Inténtalo de nuevo.'); }
   if (b){ b.disabled = false; b.textContent = 'Activar Rumbo'; }
@@ -1143,6 +1155,7 @@ function rerender(p){ if (p === 'dr' || p === 'once') renderSheet(); else { cons
 function syncAny(p){ if (p === 'dr' || p === 'once') syncDraft(); else syncOb(); }
 
 document.addEventListener('click', ev => {
+  if (ev.target.closest('[data-pay-wa]')){ L.asked = Date.now(); saveL(); setTimeout(() => { if (!$('#pay').hidden) renderPay(!locked()); }, 600); return; }
   if (ev.target.id === 'scrim'){ closeSheet(); return; }
   if (ev.target.closest('#cheer')){ hideCheer(); return; }
   const b = ev.target.closest('button, [data-open]'); if (!b) return;
@@ -1302,6 +1315,8 @@ if (!NATIVE && 'serviceWorker' in navigator && location.protocol === 'https:'){
 
 render();
 if (!S.onboarded) startOnboarding(false);
+if (!L.paid && (L.asked || locked())) checkPaid();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !L.paid && (L.asked || locked())) checkPaid(); });
 refreshNotifState().then(() => { if (S.remindOn && notif.perm === 'granted') scheduleAll(); });
 </script>
 </body>
