@@ -850,7 +850,7 @@ function renderOb(){
     (s > 0 ? '<div class="bar"><u style="width:'+Math.round(s/total*100)+'%"></u></div><span class="count">'+s+' de '+(total-1)+'</span>' : '')+'</div>';
   let h = '';
   if (s === 0){
-    h = '<div class="hero-logo st"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></div>'+
+    h = '<div class="hero-logo st"><svg class="i" viewBox="0 0 24 24" style="stroke-width:2.8"><path d="M4.5 12.5l4.5 4.5L19 7"/><path d="M14.5 6.5H19.5V11.5"/></svg></div>'+
       '<h1 class="st">Tu día,<br>en orden.</h1><p class="lead st">Dile a Rumbo lo que haces y te arma tu semana en un minuto. Después te avisa antes de cada cosa.</p>'+
       '<div class="welcome st">'+[['gym','Gym','Pierna','07:00'],['clase','Clases','Cálculo · Aula 204','13:00'],['trabajo','Trabajo','3 prioridades','17:00']].map(([t,ti,su,tm]) => { const f = fmtT(tm);
         return '<div class="row glass t-'+t+'"><div class="main"><span class="tm">'+f.t+'<small>'+f.P+'</small></span>'+icBox(t)+'<span class="txt"><b>'+ti+'</b><span>'+su+'</span></span></div><span class="tick"><span></span></span></div>'; }).join('')+'</div>'+
