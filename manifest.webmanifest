@@ -1,0 +1,16 @@
+{
+  "name": "Rumbo · agenda diaria",
+  "short_name": "Rumbo",
+  "description": "Organiza tu día por bloques: gym, clases, trabajo y descanso.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EEF1F0",
+  "theme_color": "#1C6B56",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
