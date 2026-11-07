@@ -166,6 +166,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chips button{padding:10px 15px;border-radius:999px;font-size:14.5px;font-weight:600;background:var(--card);border:1px solid var(--line);color:#D4D4D8;transition:all .15s}
 .chips button[aria-pressed="true"]{background:#fff;color:#09090B;border-color:#fff}
+.vez{display:inline-block;margin-left:10px;padding:4px 11px;border-radius:999px;font-size:14px;font-weight:700;vertical-align:middle;background:linear-gradient(150deg,var(--g1,#FF7A50),var(--g2,#C9241A));color:var(--on,#fff)}
 .chips button.add{border-style:dashed;color:var(--muted);background:transparent}
 .list{display:flex;flex-direction:column;border-radius:22px;overflow:hidden;background:var(--card);border:1px solid var(--line)}
 .li{display:flex;align-items:center;gap:13px;padding:13px 15px;min-height:54px}
@@ -856,7 +857,8 @@ function sheetEdit(){
     '<div class="sec"><h3>Tipo</h3><div class="chips">'+Object.keys(LABEL).map(t => '<button data-draft-type="'+t+'" aria-pressed="'+(a.type===t)+'">'+LABEL[t]+'</button>').join('')+'</div></div>'+
     daysBlock('dr', a) + fullSchedule('dr', a, sheet.eday) +
     '<div class="sec"><h3>Aviso antes</h3><div class="chips">'+REMIND_OPTS.map(([v,l]) => '<button data-draft-remind="'+(v===null?'off':v)+'" aria-pressed="'+((a.remind??null)===v)+'">'+l+'</button>').join('')+'</div></div>'+
-    '<div class="actions">'+(sheet.id?'<button class="btn danger" style="flex:1" data-del-act>'+(sheet.confirm?'¿Seguro?':'Borrar')+'</button>':'')+'<button class="btn" style="flex:2" data-save-act>Guardar</button></div>';
+    '<div class="actions">'+(sheet.id?'<button class="btn danger" style="flex:1" data-del-act>'+(sheet.confirm?'¿Seguro?':'Borrar')+'</button>':'')+'<button class="btn" style="flex:2" data-save-act>Guardar</button></div>'+
+    (sheet.id && a.type !== 'despertar' && a.type !== 'dormir' ? '<button class="btn ghost" style="margin-top:10px" data-dup-act>+ Agregar otra vez en el día</button><p class="hint" style="text-align:center">Ej. gym en la mañana y cardio en la noche, o un segundo trabajo.</p>' : '');
   return {type:a.type, html: head(a.type, sheet.id?'Editar':'Nueva actividad', '', '<button class="edit" data-close>Cancelar</button>') + '<div class="body">'+b+'</div>'};
 }
 function sheetRoutine(){
@@ -878,14 +880,35 @@ function sheetClass(){
 /* ---------- bienvenida: una pregunta a la vez ---------- */
 let ob = null;
 function startOnboarding(redo){
-  ob = {step: redo ? 1 : 0, redo, name: S.name || '', wake: S.wake || '06:30', sleep: S.sleep || '23:00', picks: [], items: {}, eday: null};
+  ob = {step: redo ? 1 : 0, redo, name: S.name || '', wake: S.wake || '06:30', sleep: S.sleep || '23:00', picks: [], items: {}, count: {}, extra: {}, eday: null};
   if (redo){
     for (const a of S.activities){ if (a.type === 'despertar' || a.type === 'dormir') continue;
-      if (!ob.picks.includes(a.type)){ ob.picks.push(a.type); ob.items[a.type] = {start:a.start, end:a.end, days:a.days.slice(), title:a.title, subjects:'', vary:!!a.vary, times: JSON.parse(JSON.stringify(a.times||{}))}; } }
+      const t = a.type; if (!ob.picks.includes(t)) ob.picks.push(t);
+      const n = (ob.count[t] || 0) + 1;
+      if (n > 3){ (ob.extra[t] ||= []).push(a); continue; }
+      ob.count[t] = n;
+      ob.items[n === 1 ? t : t+n] = {start:a.start, end:a.end, days:a.days.slice(), title:a.title, subjects:'', vary:!!a.vary, times: JSON.parse(JSON.stringify(a.times||{})), oldId:a.id}; }
   }
   $('#ob').hidden = false; $('#nav').hidden = true; renderOb();
 }
-function obItem(k){ if (!ob.items[k]){ const c = CATALOG.find(x => x.k === k); ob.items[k] = {start:c.start, end:c.end, days:c.days.slice(), title: k==='otro' ? '' : LABEL[k], subjects:'', vary:false, times:{}}; } return ob.items[k]; }
+/* clave de cada pantalla: 'gym' es la 1ª vez, 'gym2' la 2ª, 'gym3' la 3ª */
+const obBase = k => k.replace(/\d$/, '');
+const obNth = k => +(k.match(/\d$/)||[1])[0];
+const obSteps = () => ob.picks.flatMap(k => { const n = ob.count[k] || 1; return [k, ...(n >= 2 ? [k+'2'] : []), ...(n >= 3 ? [k+'3'] : [])]; });
+function obItem(k){
+  if (!ob.items[k]){
+    const b = obBase(k), n = obNth(k);
+    if (n === 1){ const c = CATALOG.find(x => x.k === b); ob.items[k] = {start:c.start, end:c.end, days:c.days.slice(), title:'', subjects:'', vary:false, times:{}}; }
+    else {
+      // la siguiente vez arranca unas horas después de la anterior, mismos días
+      const prev = obItem(n === 2 ? b : b+'2'), dur = durMin(prev), st = Math.round(((toMin(prev.end) + 240) % 1440) / 30) * 30 % 1440;
+      ob.items[k] = {start: fromMin(st), end: fromMin(st + dur), days: prev.days.slice(), title:'', subjects:'', vary:false, times:{}};
+    }
+  }
+  return ob.items[k];
+}
+const PART = m => m < 720 ? 'mañana' : m < 1140 ? 'tarde' : 'noche';
+const NAME_PH = {gym:'Ej. Hipertrofia, Cardio, Pilates', clase:'Ej. Clases de la tarde', trabajo:'Ej. Segundo trabajo', estudio:'Ej. Repaso de la noche', correr:'Ej. Trote suave', leer:'Ej. Lectura antes de dormir', meditar:'Ej. Respiración', proyecto:'Ej. Mi tienda online', otro:'Ej. Clases de guitarra'};
 function syncOb(){
   document.querySelectorAll('#ob [data-ob]').forEach(i => { ob[i.dataset.ob] = i.value; });
   document.querySelectorAll('#ob [data-obi]').forEach(i => { const [k,f] = i.dataset.obi.split('.'); obItem(k)[f] = i.value; });
@@ -893,14 +916,15 @@ function syncOb(){
 function overlapFor(k){
   const me = ob.items[k]; if (!me) return '';
   const span = x => { const s = toMin(x.start); let e = toMin(x.end); if (e <= s) e += 1440; return [s,e]; };
-  for (const o of ob.picks){ if (o === k) continue; const it = ob.items[o]; if (!it || ob.picks.indexOf(o) > ob.picks.indexOf(k)) continue;
+  const st = obSteps();
+  for (const o of st){ if (o === k) continue; const it = ob.items[o]; if (!it || st.indexOf(o) > st.indexOf(k)) continue;
     for (const d of me.days){ if (!it.days.includes(d)) continue;
       const [s1,e1] = span(slot(me,d)), [s2,e2] = span(slot(it,d));
-      if (s1 < e2 && s2 < e1) return 'Se cruza con '+(o==='otro' ? (it.title||'Otra cosa') : LABEL[o])+' el '+DN[d]; } }
+      if (s1 < e2 && s2 < e1) return 'Se cruza con '+(it.title.trim() || (obBase(o)==='otro' ? 'Otra cosa' : LABEL[obBase(o)]) + ((ob.count[obBase(o)]||1) > 1 ? ' ('+obNth(o)+'ª vez)' : ''))+' el '+DN[d]; } }
   return '';
 }
 function renderOb(){
-  const s = ob.step, n = ob.picks.length, total = 4 + n, k = s >= 4 ? ob.picks[s-4] : null;
+  const s = ob.step, n = ob.picks.length, steps = obSteps(), total = 4 + steps.length, k = s >= 4 ? steps[s-4] : null;
   const canBack = s > 0 && !(ob.redo && s === 1);
   const bar = '<div class="topbar">'+(canBack ? '<button class="back" data-ob-back aria-label="Atrás"><svg class="i" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>' : (ob.redo ? '<button class="back" data-ob-cancel aria-label="Cancelar"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>' : ''))+
     (s > 0 ? '<div class="bar"><u style="width:'+Math.round(s/total*100)+'%"></u></div><span class="count">'+s+' de '+(total-1)+'</span>' : '')+'</div>';
@@ -926,10 +950,13 @@ function renderOb(){
       '<div class="tiles st">'+CATALOG.map(c => '<button class="tile t-'+c.k+(ob.picks.includes(c.k)?' on':'')+'" data-pick="'+c.k+'" aria-pressed="'+ob.picks.includes(c.k)+'"><span class="ic">'+ico(c.k)+'</span>'+LABEL[c.k]+'<span class="tk">'+CHECK+'</span></button>').join('')+'</div>'+
       '<div class="foot"><button class="btn" data-ob-next>'+(n ? 'Seguir con '+n+(n===1?' actividad':' actividades') : 'Seguir sin actividades')+'</button></div>';
   } else {
-    const it = obItem(k), w = overlapFor(k), last = s === total - 1;
-    h = '<div class="titlerow st t-'+k+'">'+icBox(k)+'<h1 style="font-size:32px">'+(k==='otro' ? 'Otra cosa' : LABEL[k])+'</h1></div>'+
-      (k==='otro' ? '<label class="field st"><span>¿Qué es?</span><input type="text" id="obn-otro" data-obi="otro.title" value="'+esc(it.title)+'" placeholder="Ej. Clases de guitarra"></label>' : '')+
-      '<div class="st t-'+k+'" style="display:flex;flex-direction:column;gap:12px">'+daysBlock('obi.'+k, it)+fullSchedule('obi.'+k, it, ob.eday)+'</div>'+
+    const it = obItem(k), w = overlapFor(k), last = s === total - 1, b = obBase(k), nth = obNth(k), cnt = ob.count[b] || 1;
+    const VEZ = ['1 vez','2 veces','3 veces'];
+    h = '<div class="titlerow st t-'+b+'">'+icBox(b)+'<h1 style="font-size:32px">'+(b==='otro' ? 'Otra cosa' : LABEL[b])+(cnt > 1 ? '<span class="vez">'+nth+'ª vez</span>' : '')+'</h1></div>'+
+      (nth === 1 ? '<div class="sec st"><h3>¿Cuántas veces al día?</h3><div class="chips">'+VEZ.map((l,i) => '<button data-obcount="'+b+'" data-v="'+(i+1)+'" aria-pressed="'+(cnt===i+1)+'">'+l+'</button>').join('')+'</div>'+
+        (cnt > 1 ? '<p class="hint">Cada vez tiene su propio nombre, días y horario. Vamos una por una.</p>' : '')+'</div>' : '')+
+      (b==='otro' || cnt > 1 ? '<label class="field st"><span>'+(b==='otro' && nth===1 ? '¿Qué es?' : '¿Qué haces esta vez?'+(b==='otro'?'':' (opcional)'))+'</span><input type="text" id="obn-'+k+'" data-obi="'+k+'.title" value="'+esc(it.title)+'" placeholder="'+(NAME_PH[b]||'')+'"></label>' : '')+
+      '<div class="st t-'+b+'" style="display:flex;flex-direction:column;gap:12px">'+daysBlock('obi.'+k, it)+fullSchedule('obi.'+k, it, ob.eday)+'</div>'+
       (k==='clase' ? '<label class="field st"><span>Tus materias (separadas por coma)</span><input type="text" id="ob-subj" data-obi="clase.subjects" value="'+esc(it.subjects)+'" placeholder="Ej. Cálculo, Inglés, Historia"></label>' : '')+
       (w ? '<div class="warn">'+w+'</div>' : '')+
       '<div class="foot"><button class="btn '+(last?'glow':'')+'" '+(last?'data-ob-finish':'data-ob-next')+'>'+(last?'Crear mi semana':'Listo, siguiente')+'</button></div>';
@@ -940,16 +967,18 @@ function renderOb(){
 function finishOnboarding(){
   syncOb();
   const keep = ob.redo, old = keep ? S.activities : [];
-  const findOld = type => old.find(a => a.type === type);
-  const mk = (type, title, start, end, days, remind) => { const o = findOld(type); return {id: o ? o.id : uid(), type, title, start, end, days, remind: o && o.remind !== undefined ? o.remind : remind, pref: o?.pref}; };
+  const findOld = (type, oldId) => old.find(a => oldId ? a.id === oldId : a.type === type);
+  const mk = (type, title, start, end, days, remind, oldId) => { const o = findOld(type, oldId); return {id: o ? o.id : uid(), type, title, start, end, days, remind: o && o.remind !== undefined ? o.remind : remind, pref: o?.pref}; };
   const acts = [mk('despertar','Despertar', ob.wake, fromMin(toMin(ob.wake)+30), ALL.slice(), 0)];
-  for (const k of ob.picks){ const it = obItem(k); if (!it.days.length) continue;
-    const a = mk(k, k==='otro' ? (it.title.trim() || 'Otra cosa') : (findOld(k)?.title || LABEL[k]), it.start, it.end, it.days.slice().sort(), 10);
+  for (const key of obSteps()){ const it = obItem(key), k = obBase(key), cnt = ob.count[k] || 1; if (!it.days.length) continue;
+    const title = it.title.trim() || (k==='otro' ? 'Otra cosa' : LABEL[k]) + (cnt > 1 ? ' · '+PART(toMin(it.start)) : '');
+    const a = mk(k, title, it.start, it.end, it.days.slice().sort(), 10, it.oldId);
     a.vary = !!it.vary; if (a.vary) a.times = JSON.parse(JSON.stringify(it.times||{}));
     normalizeTimes(a); acts.push(a);
-    if (k === 'clase' && it.subjects.trim())
+    if (key === 'clase' && it.subjects.trim())
       for (const name of it.subjects.split(',').map(x => x.trim()).filter(Boolean)) if (!S.classes.some(c => c.name.toLowerCase() === name.toLowerCase())) S.classes.push({id:uid(), name, room:'', who:''});
   }
+  for (const k of ob.picks) for (const a of (ob.extra[k] || [])) acts.push(a); // más de 3 veces: se conservan tal cual
   acts.push(mk('dormir','Dormir', ob.sleep, ob.wake, ALL.slice(), 30));
   const cl = acts.find(a => a.type === 'clase'); if (cl && !cl.pref && S.classes[0]) cl.pref = {classId: S.classes[0].id};
   S.name = ob.name.trim(); S.wake = ob.wake; S.sleep = ob.sleep; S.activities = acts; S.onboarded = true;
@@ -1056,12 +1085,14 @@ document.addEventListener('click', ev => {
   // bienvenida
   if ('obNext' in D){ syncOb();
     if (ob.step === 1 && !ob.name.trim()){ toast('Escribe tu nombre'); return; }
-    if (ob.step >= 4){ const it = obItem(ob.picks[ob.step-4]); if (!it.days.length){ toast('Elige al menos un día'); return; } }
+    if (ob.step >= 4){ const key = obSteps()[ob.step-4], it = obItem(key); if (!it.days.length){ toast('Elige al menos un día'); return; }
+      if (obBase(key) === 'otro' && obNth(key) === 1 && !it.title.trim()){ toast('Escribe qué es'); return; } }
     ob.step++; ob.eday = null; renderOb(); $('#ob').scrollTop = 0; return; }
   if ('obBack' in D){ syncOb(); ob.step--; ob.eday = null; renderOb(); $('#ob').scrollTop = 0; return; }
   if ('obCancel' in D){ ob = null; $('#ob').hidden = true; render(); return; }
   if (D.pick){ syncOb(); const i = ob.picks.indexOf(D.pick); i >= 0 ? ob.picks.splice(i,1) : ob.picks.push(D.pick); buzz(); renderOb(); return; }
-  if ('obFinish' in D){ syncOb(); const it = obItem(ob.picks[ob.step-4]); if (!it.days.length){ toast('Elige al menos un día'); return; } finishOnboarding(); return; }
+  if (D.obcount){ syncOb(); ob.count[D.obcount] = +D.v; buzz(); rerender('ob'); return; }
+  if ('obFinish' in D){ syncOb(); const it = obItem(obSteps()[ob.step-4]); if (!it.days.length){ toast('Elige al menos un día'); return; } finishOnboarding(); return; }
   if ('redo' in D){ startOnboarding(true); return; }
 
   if (D.view){ view = D.view; animNext = true; render(); window.scrollTo(0,0); return; }
@@ -1099,9 +1130,12 @@ document.addEventListener('click', ev => {
   if ('new' in D){ openSheet({kind:'edit', id:null, draft:{title:'', type:'otro', start:'09:00', end:'10:00', days:[sel.getDay()], remind:10, vary:false, times:{}}}); return; }
   if (D.editAct){ const a = actById(D.editAct); openSheet({kind:'edit', id:a.id, back: sheet && sheet.kind === 'act' ? a.id : null, draft:{...a, days:a.days.slice(), times: JSON.parse(JSON.stringify(a.times||{}))}}); return; }
   if (D.draftType){ syncDraft(); const dr = sheet.draft; if (!dr.title.trim() || Object.values(LABEL).includes(dr.title)) dr.title = LABEL[D.draftType]; dr.type = D.draftType; renderSheet(); return; }
+  if ('dupAct' in D){ syncDraft(); const dr = sheet.draft, dur = durMin(dr), st = Math.round(((toMin(dr.end) + 240) % 1440) / 30) * 30 % 1440;
+    openSheet({kind:'edit', id:null, draft:{title:'', type:dr.type, start:fromMin(st), end:fromMin(st+dur), days:dr.days.slice(), remind:dr.remind ?? 10, vary:false, times:{}, pref: dr.pref ? {...dr.pref} : undefined}});
+    toast('Elige el horario de la otra vez'); return; }
   if (D.draftRemind){ syncDraft(); sheet.draft.remind = D.draftRemind === 'off' ? null : +D.draftRemind; renderSheet(); return; }
   if ('saveAct' in D){ syncDraft(); const dr = sheet.draft;
-    if (!dr.title.trim()) dr.title = LABEL[dr.type];
+    if (!dr.title.trim()) dr.title = LABEL[dr.type] + (S.activities.some(x => x.type === dr.type && x.id !== sheet.id) ? ' · '+PART(toMin(dr.start)) : '');
     if (!dr.days.length){ toast('Elige al menos un día'); return; }
     normalizeTimes(dr);
     if (sheet.id){ const a = actById(sheet.id); Object.assign(a, dr); if (!dr.vary) delete a.times; } else S.activities.push({...dr, id:uid()});
