@@ -506,9 +506,9 @@ function scheduleBlock(ctx, o){
   return '<div class="q glass"><h3>¿A qué hora empieza?</h3>'+timeStrip(ctx, o.start)+'</div>'+
     '<div class="q glass"><h3>¿Cuánto dura?</h3>'+durChips(ctx, o)+'</div>';
 }
-function daysBlock(prefix, o){
+function daysBlock(prefix, o, title, note){
   const cur = o.days.slice().sort().join(',');
-  return '<div class="q glass"><h3>¿Qué días?</h3><div class="presets">'+PRESETS.map(([l,ds],i) => '<button data-preset="'+prefix+'" data-i="'+i+'" aria-pressed="'+(ds.slice().sort().join(',')===cur)+'">'+l+'</button>').join('')+'</div>'+
+  return '<div class="q glass"><h3>'+(title||'¿Qué días?')+'</h3>'+(note ? '<p class="hint" style="margin:0 0 10px">'+note+'</p>' : '')+'<div class="presets">'+PRESETS.map(([l,ds],i) => '<button data-preset="'+prefix+'" data-i="'+i+'" aria-pressed="'+(ds.slice().sort().join(',')===cur)+'">'+l+'</button>').join('')+'</div>'+
     '<div class="days">'+ORDER.map(d => '<button data-dday="'+prefix+'" data-d="'+d+'" aria-pressed="'+o.days.includes(d)+'" aria-label="'+DN[d]+'">'+DL[d]+'</button>').join('')+'</div></div>';
 }
 /* bloque completo de horario: misma hora o día por día (con pestañas de día) */
@@ -902,7 +902,7 @@ function obItem(k){
     else {
       // la siguiente vez arranca unas horas después de la anterior, mismos días
       const prev = obItem(n === 2 ? b : b+'2'), dur = durMin(prev), st = Math.round(((toMin(prev.end) + 240) % 1440) / 30) * 30 % 1440;
-      ob.items[k] = {start: fromMin(st), end: fromMin(st + dur), days: prev.days.slice(), title:'', subjects:'', vary:false, times:{}};
+      ob.items[k] = {start: fromMin(st), end: fromMin(st + dur), days: [], title:'', subjects:'', vary:false, times:{}};
     }
   }
   return ob.items[k];
@@ -951,12 +951,12 @@ function renderOb(){
       '<div class="foot"><button class="btn" data-ob-next>'+(n ? 'Seguir con '+n+(n===1?' actividad':' actividades') : 'Seguir sin actividades')+'</button></div>';
   } else {
     const it = obItem(k), w = overlapFor(k), last = s === total - 1, b = obBase(k), nth = obNth(k), cnt = ob.count[b] || 1;
-    const VEZ = ['1 vez','2 veces','3 veces'];
+    const VEZ = ['No','Sí, 2 veces','Sí, 3 veces'];
     h = '<div class="titlerow st t-'+b+'">'+icBox(b)+'<h1 style="font-size:32px">'+(b==='otro' ? 'Otra cosa' : LABEL[b])+(cnt > 1 ? '<span class="vez">'+nth+'ª vez</span>' : '')+'</h1></div>'+
-      (nth === 1 ? '<div class="sec st"><h3>¿Cuántas veces al día?</h3><div class="chips">'+VEZ.map((l,i) => '<button data-obcount="'+b+'" data-v="'+(i+1)+'" aria-pressed="'+(cnt===i+1)+'">'+l+'</button>').join('')+'</div>'+
-        (cnt > 1 ? '<p class="hint">Cada vez tiene su propio nombre, días y horario. Vamos una por una.</p>' : '')+'</div>' : '')+
+      (nth === 1 ? '<div class="sec st"><h3>¿Algún día lo haces más de una vez?</h3><div class="chips">'+VEZ.map((l,i) => '<button data-obcount="'+b+'" data-v="'+(i+1)+'" aria-pressed="'+(cnt===i+1)+'">'+l+'</button>').join('')+'</div>'+
+        (cnt > 1 ? '<p class="hint">Después eliges en qué días. Puede ser solo algunos, por ejemplo martes y jueves.</p>' : '')+'</div>' : '')+
       (b==='otro' || cnt > 1 ? '<label class="field st"><span>'+(b==='otro' && nth===1 ? '¿Qué es?' : '¿Qué haces esta vez?'+(b==='otro'?'':' (opcional)'))+'</span><input type="text" id="obn-'+k+'" data-obi="'+k+'.title" value="'+esc(it.title)+'" placeholder="'+(NAME_PH[b]||'')+'"></label>' : '')+
-      '<div class="st t-'+b+'" style="display:flex;flex-direction:column;gap:12px">'+daysBlock('obi.'+k, it)+fullSchedule('obi.'+k, it, ob.eday)+'</div>'+
+      '<div class="st t-'+b+'" style="display:flex;flex-direction:column;gap:12px">'+daysBlock('obi.'+k, it, nth > 1 ? '¿Qué días lo haces por '+nth+'ª vez?' : null, nth > 1 ? 'Toca solo los días en que lo haces '+nth+' veces.' : null)+fullSchedule('obi.'+k, it, ob.eday)+'</div>'+
       (k==='clase' ? '<label class="field st"><span>Tus materias (separadas por coma)</span><input type="text" id="ob-subj" data-obi="clase.subjects" value="'+esc(it.subjects)+'" placeholder="Ej. Cálculo, Inglés, Historia"></label>' : '')+
       (w ? '<div class="warn">'+w+'</div>' : '')+
       '<div class="foot"><button class="btn '+(last?'glow':'')+'" '+(last?'data-ob-finish':'data-ob-next')+'>'+(last?'Crear mi semana':'Listo, siguiente')+'</button></div>';
@@ -1131,8 +1131,8 @@ document.addEventListener('click', ev => {
   if (D.editAct){ const a = actById(D.editAct); openSheet({kind:'edit', id:a.id, back: sheet && sheet.kind === 'act' ? a.id : null, draft:{...a, days:a.days.slice(), times: JSON.parse(JSON.stringify(a.times||{}))}}); return; }
   if (D.draftType){ syncDraft(); const dr = sheet.draft; if (!dr.title.trim() || Object.values(LABEL).includes(dr.title)) dr.title = LABEL[D.draftType]; dr.type = D.draftType; renderSheet(); return; }
   if ('dupAct' in D){ syncDraft(); const dr = sheet.draft, dur = durMin(dr), st = Math.round(((toMin(dr.end) + 240) % 1440) / 30) * 30 % 1440;
-    openSheet({kind:'edit', id:null, draft:{title:'', type:dr.type, start:fromMin(st), end:fromMin(st+dur), days:dr.days.slice(), remind:dr.remind ?? 10, vary:false, times:{}, pref: dr.pref ? {...dr.pref} : undefined}});
-    toast('Elige el horario de la otra vez'); return; }
+    openSheet({kind:'edit', id:null, draft:{title:'', type:dr.type, start:fromMin(st), end:fromMin(st+dur), days: dr.days.includes(sel.getDay()) ? [sel.getDay()] : [], remind:dr.remind ?? 10, vary:false, times:{}, pref: dr.pref ? {...dr.pref} : undefined}});
+    toast('Elige los días y la hora de la otra vez'); return; }
   if (D.draftRemind){ syncDraft(); sheet.draft.remind = D.draftRemind === 'off' ? null : +D.draftRemind; renderSheet(); return; }
   if ('saveAct' in D){ syncDraft(); const dr = sheet.draft;
     if (!dr.title.trim()) dr.title = LABEL[dr.type] + (S.activities.some(x => x.type === dr.type && x.id !== sheet.id) ? ' · '+PART(toMin(dr.start)) : '');
