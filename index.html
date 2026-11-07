@@ -278,6 +278,22 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .tile .tk{position:absolute;top:12px;right:12px;width:24px;height:24px;border-radius:50%;background:#fff;color:#09090B;display:none;place-items:center}
 .tile.on .tk{display:grid;animation:pop .3s var(--ease)}
 .tile .tk svg{width:14px;height:14px;stroke-width:3.2}
+.pay{z-index:55}
+.pay .x{position:absolute;right:0;top:0}
+.price{display:flex;align-items:baseline;gap:12px;padding:18px 20px;border-radius:24px}
+.price b{font:800 40px var(--fd);letter-spacing:-.03em}
+.price span{color:var(--muted);font-size:15px;line-height:1.35}
+.pstep{display:flex;gap:14px;padding:16px;border-radius:24px}
+.pstep>i{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;background:linear-gradient(150deg,#FF7A50,#C9241A);color:#fff}
+.pstep>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.pstep b{font-size:16.5px}
+.pstep span{color:var(--muted);font-size:14.5px;line-height:1.4}
+.pstep .btn{margin-top:6px;text-decoration:none}
+.pstep img{width:170px;max-width:100%;border-radius:16px;background:#fff;padding:8px;margin-top:6px}
+.pstep input{width:100%;margin-top:6px;border:1px solid var(--line);background:var(--card);border-radius:16px;padding:14px;font:700 20px var(--fd);letter-spacing:3px;text-transform:uppercase;text-align:center;outline:none}
+.payid{font:700 15px var(--fd);letter-spacing:1px;color:#fff}
+.trial{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:24px}
+.trial p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.4}
 .hero-logo{width:86px;height:86px;border-radius:28px;background:linear-gradient(150deg,#FF7A50,#C9241A);color:#fff;display:grid;place-items:center;margin-top:26px;box-shadow:0 0 50px -10px #FF4D2E}
 .hero-logo svg{width:46px;height:46px}
 .welcome{display:flex;flex-direction:column;gap:9px;margin-top:6px}
@@ -358,6 +374,7 @@ body{font-feature-settings:"kern","calt"}
 <div class="scrim" id="scrim" hidden></div>
 <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Detalle" hidden></section>
 <div class="ob" id="ob" hidden></div>
+<div class="ob pay" id="pay" hidden></div>
 <div class="toast" id="toast" role="status"></div>
 <div class="cheer" id="cheer" role="status" aria-live="polite" hidden></div>
 
@@ -606,7 +623,7 @@ async function doSchedule(){
   if (!LN){
     if (!PUSH_OK || Notification.permission !== 'granted') return;
     try {
-      if (!S.remindOn){ const sub = await webSub(false); if (sub) await fetch(PUSH_URL+'/unsubscribe', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({subscription: sub.toJSON()})}); return; }
+      if (!S.remindOn || locked()){ const sub = await webSub(false); if (sub) await fetch(PUSH_URL+'/unsubscribe', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({subscription: sub.toJSON()})}); return; }
       await webSub(true);
       await pushPost('/sync', {items: upcoming(21).map(x => ({at: x.at.getTime(), title: x.title, body: x.body, act: x.act}))});
     } catch(e){ console.error(e); }
@@ -615,7 +632,7 @@ async function doSchedule(){
   try {
     const pend = await LN.getPending();
     if (pend.notifications.length) await LN.cancel({notifications: pend.notifications.map(n => ({id:n.id}))});
-    if (!S.remindOn || notif.perm !== 'granted') return;
+    if (!S.remindOn || notif.perm !== 'granted' || locked()) return;
     try { await LN.createChannel({id:'rumbo', name:'Recordatorios', description:'Avisos de tus actividades', importance:5, visibility:1, vibration:true}); } catch(e){}
     // avisos con fecha para los próximos 21 días: respetan horarios por día, cambios de un solo día y días quitados.
     const list = []; let nid = 1; const now = Date.now(), d0 = dayOnly(new Date());
@@ -652,6 +669,63 @@ const IS_IOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel'
 const IS_ANDROID = /Android/.test(UA);
 const STANDALONE = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
 const APK_URL = 'https://github.com/alkam7/rumbo/releases/latest/download/Rumbo.apk';
+
+/* ---------- prueba gratis de 14 días y pago único ---------- */
+// Datos para cobrar: los completa el dueño de Rumbo.
+const PAY = {price:'S/ 20', yape:'989714815', name:'Aldair', wa:'51989714815', qr:''};
+const TRIAL_DAYS = 14, DAY = 864e5, LIC = 'rumbo-lic';
+const L = (() => {
+  let o = null; try { o = JSON.parse(localStorage.getItem(LIC)); } catch(e){}
+  if (!o || !/^RB-[2-9A-HJKMNP-Z]{6}$/.test(o.id)){
+    const A = '23456789ABCDEFGHJKMNPQRSTUVWXYZ', r = crypto.getRandomValues(new Uint8Array(6));
+    o = {id: 'RB-' + [...r].map(b => A[b % A.length]).join(''), start: Date.now(), paid: false};
+  }
+  return o;
+})();
+function saveL(){ try { localStorage.setItem(LIC, JSON.stringify(L)); } catch(e){} }
+saveL();
+const trialLeft = () => Math.max(0, Math.ceil((L.start + TRIAL_DAYS*DAY - Date.now()) / DAY));
+const locked = () => !L.paid && Date.now() >= L.start + TRIAL_DAYS*DAY;
+const fmtPhone = n => String(n).replace(/(\d{3})(\d{3})(\d{3})$/, '$1 $2 $3');
+function waLink(){ return 'https://wa.me/'+PAY.wa+'?text='+encodeURIComponent('Hola, ya yapeé '+PAY.price+' por Rumbo 🙌 Te mando la captura. Mi ID es '+L.id); }
+function renderPay(closable){
+  const lk = locked(), left = trialLeft(), box = $('#pay');
+  const step1 = PAY.yape
+    ? '<b>Yapea '+PAY.price+'</b><span>A '+esc(PAY.name)+' · <b style="font-size:inherit">'+fmtPhone(PAY.yape)+'</b></span>'+(PAY.qr ? '<img src="'+PAY.qr+'" alt="QR de Yape">' : '')+'<button class="btn ghost sm" data-pay-copy>Copiar número</button>'
+    : '<b>Yapea '+PAY.price+'</b><span>Pronto aquí verás el número y el QR.</span>';
+  box.innerHTML = '<div class="in anim" style="position:relative">'+
+    (closable ? '<button class="back x" data-pay-close aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>' : '')+
+    '<div class="hero-logo st"><svg class="i" viewBox="0 0 24 24" style="stroke-width:2.8"><path d="M4.5 12.5l4.5 4.5L19 7"/><path d="M14.5 6.5H19.5V11.5"/></svg></div>'+
+    '<h1 class="st">'+(lk ? 'Tus 2 semanas gratis terminaron' : 'Quédate con Rumbo para siempre')+'</h1>'+
+    '<p class="lead st">'+(lk ? (S.name ? esc(S.name)+', tu' : 'Tu')+' semana y tu progreso siguen guardados. Desbloquea Rumbo para seguir usándola.' : 'Te '+(left === 1 ? 'queda 1 día' : 'quedan '+left+' días')+' gratis. Paga una sola vez y es tuya para siempre.')+'</p>'+
+    '<div class="price glass st"><b>'+PAY.price+'</b><span>Pago único.<br>Sin mensualidades.</span></div>'+
+    '<div class="pstep glass st"><i>1</i><div>'+step1+'</div></div>'+
+    '<div class="pstep glass st"><i>2</i><div><b>Mándame la captura</b><span>Por WhatsApp. El mensaje ya lleva tu ID: <span class="payid">'+L.id+'</span></span>'+
+      (PAY.wa ? '<a class="btn sm" href="'+waLink()+'" target="_blank" rel="noopener">Enviar por WhatsApp</a>' : '')+'</div></div>'+
+    '<div class="pstep glass st"><i>3</i><div><b>Escribe tu código</b><span>Te lo respondo en el chat. Solo funciona en este celular.</span>'+
+      '<input id="pay-code" placeholder="XXXX-XXXX" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="btn glow" data-pay-unlock>Activar Rumbo</button></div></div>'+
+    '<p class="muted st" style="font-size:13px;text-align:center;margin:4px 0 0">Tu ID: '+L.id+' · ¿Cambiaste de celular? Escríbeme y te ayudo.</p>'+
+  '</div>';
+  box.hidden = false; $('#nav').hidden = true;
+}
+function hidePay(){ $('#pay').hidden = true; if (S.onboarded) $('#nav').hidden = false; }
+async function unlock(){
+  const inp = $('#pay-code'), code = (inp?.value || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+  if (code.length !== 8){ toast('El código tiene 8 letras y números'); return; }
+  const b = document.querySelector('[data-pay-unlock]'); if (b){ b.disabled = true; b.textContent = 'Revisando...'; }
+  try {
+    const r = await fetch(PUSH_URL+'/unlock', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: L.id, code})});
+    const j = await r.json().catch(() => ({}));
+    if (j.ok){ L.paid = true; L.paidAt = Date.now(); saveL(); hidePay(); buzz('HEAVY'); toast('¡Listo! Rumbo es tuya para siempre'); render(); if (S.remindOn) scheduleAll(); return; }
+    toast(j.error === 'limit' ? 'Muchos intentos. Prueba en una hora.' : 'Ese código no es válido para este celular');
+  } catch(e){ toast('Sin conexión. Inténtalo de nuevo.'); }
+  if (b){ b.disabled = false; b.textContent = 'Activar Rumbo'; }
+}
+function trialCard(){
+  if (L.paid) return '<section class="lib-sec st"><h3>Rumbo</h3><div class="list"><div class="li"><span><b>Versión completa ✓</b><br><span class="muted" style="font-size:14px">Gracias por apoyar Rumbo</span></span></div></div></section>';
+  const left = trialLeft();
+  return '<section class="lib-sec st"><h3>Prueba gratis</h3><div class="trial glass"><b style="font-size:17px">Te '+(left === 1 ? 'queda 1 día' : 'quedan '+left+' días')+' gratis</b><p>Después, un solo pago de '+PAY.price+' y Rumbo es tuya para siempre.</p><button class="btn sm" data-pay-open>Desbloquear para siempre</button></div></section>';
+}
 const icsEsc = s => String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
 const icsDT = d => d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'T'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0')+'00';
 function buildICS(){
@@ -682,6 +756,7 @@ function exportICS(){
   toast(IS_IOS ? 'Toca "Agregar todo" para guardarlos en Calendario' : 'Abre el archivo para agregarlo a tu calendario');
 }
 function banner(){
+  if (!L.paid && trialLeft() <= 3) return '<div class="banner st"><p><b>'+(trialLeft() === 1 ? 'Hoy es tu último día gratis.' : 'Te quedan '+trialLeft()+' días gratis.')+'</b> Desbloquea Rumbo para siempre con un solo pago de '+PAY.price+'.</p><button class="btn sm" data-pay-open>Desbloquear</button></div>';
   if (NATIVE){
     if (!(S.remindOn && notif.perm === 'granted')) return '<div class="banner st"><p><b>Activa tus recordatorios.</b> Rumbo te avisa antes de cada actividad, aunque la app esté cerrada.</p><button class="btn sm" data-remind-on>Activar recordatorios</button></div>';
     if (notif.exact === 'denied') return '<div class="banner st"><p>Para que los avisos lleguen a la hora exacta, permite <b>alarmas y recordatorios</b> para Rumbo.</p><button class="btn sm" data-exact>Permitir</button></div>';
@@ -698,6 +773,7 @@ function banner(){
 let view = 'hoy', sel = dayOnly(new Date()), animNext = true;
 function render(){
   if (!S.onboarded){ $('#app').innerHTML = ''; $('#nav').hidden = true; return; }
+  if (locked() && !ob){ if ($('#pay').hidden) renderPay(false); return; }
   $('#nav').hidden = false;
   document.querySelectorAll('.nav .tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.view === view ? 'page' : 'false'));
   const app = $('#app');
@@ -771,6 +847,7 @@ function viewTu(){
   const rs = S.routines.map(r => '<button class="item" data-edit-routine="'+r.id+'">'+icBox('gym')+'<span class="grow"><b>'+esc(r.name)+'</b><span>'+r.ex.length+' ejercicios</span></span>'+CHEV+'</button>').join('');
   const cs = S.classes.map(c => '<button class="item" data-edit-class="'+c.id+'">'+icBox('clase')+'<span class="grow"><b>'+esc(c.name)+'</b><span>'+esc([c.room,c.who].filter(Boolean).join(' · ') || 'Sin aula')+'</span></span>'+CHEV+'</button>').join('');
   return '<header class="page-h st"><h1>'+(S.name ? esc(S.name) : 'Tú')+'</h1><p>Tu semana, tus rutinas y tus avisos</p></header>'+
+    trialCard()+
     '<section class="lib-sec st"><h3>Avisos</h3>'+avisos+'</section>'+
     '<section class="lib-sec st"><h3>Logros</h3><div class="list"><div class="li"><label for="cheerToggle"><b>Mensajes de logro</b><br><span class="muted" style="font-size:14px">Tu % del día y un mensaje motivador cada vez que cumples algo</span></label><input type="checkbox" class="switch" id="cheerToggle" data-cheer-toggle '+(S.cheerOff?'':'checked')+'></div></div></section>'+
     '<section class="lib-sec st"><div class="hd"><h3>Mi semana</h3><button class="link" data-new>+ Agregar</button></div><div class="list">'+(acts||'<div class="li muted">Aún no tienes actividades.</div>')+'</div></section>'+
@@ -1094,6 +1171,10 @@ document.addEventListener('click', ev => {
   if (D.obcount){ syncOb(); ob.count[D.obcount] = +D.v; buzz(); rerender('ob'); return; }
   if ('obFinish' in D){ syncOb(); const it = obItem(obSteps()[ob.step-4]); if (!it.days.length){ toast('Elige al menos un día'); return; } finishOnboarding(); return; }
   if ('redo' in D){ startOnboarding(true); return; }
+  if ('payOpen' in D){ renderPay(true); return; }
+  if ('payClose' in D){ hidePay(); return; }
+  if ('payUnlock' in D){ unlock(); return; }
+  if ('payCopy' in D){ (navigator.clipboard ? navigator.clipboard.writeText(PAY.yape) : Promise.reject()).then(() => toast('Número copiado'), () => toast(fmtPhone(PAY.yape))); return; }
 
   if (D.view){ view = D.view; animNext = true; render(); window.scrollTo(0,0); return; }
   if (D.day){ sel = new Date(D.day+'T00:00'); animNext = true; render(); return; }
@@ -1197,6 +1278,7 @@ document.addEventListener('keydown', ev => {
 if (SB){ try { SB.setStyle({style:'DARK'}); SB.setBackgroundColor && SB.setBackgroundColor({color:'#09090B'}); } catch(e){} }
 if (AppP){
   AppP.addListener('backButton', () => {
+    if (!$('#pay').hidden){ if (locked()) AppP.minimizeApp(); else hidePay(); return; }
     if (sheet) closeSheet();
     else if (ob && ob.step > 0 && !(ob.redo && ob.step === 1)){ syncOb(); ob.step--; renderOb(); }
     else if (ob && ob.redo){ ob = null; $('#ob').hidden = true; render(); }
