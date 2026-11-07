@@ -15,16 +15,16 @@
 <meta name="apple-mobile-web-app-title" content="Rumbo">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
-@font-face{font-family:"Bricolage";src:url("fonts/bricolage.woff2") format("woff2");font-weight:500 800;font-display:swap}
-@font-face{font-family:"Onest";src:url("fonts/onest.woff2") format("woff2");font-weight:400 700;font-display:swap}
-/* Midnight: negro profundo con luces de color de fondo, tarjetas de vidrio, actividades en degradados que brillan, display Bricolage + texto Onest. */
+@font-face{font-family:"InterR";src:url("fonts/inter.woff2") format("woff2");font-weight:400 800;font-display:swap}
+/* Midnight: negro profundo con luces de color de fondo, tarjetas de vidrio, actividades en degradados que brillan, letra tipo Apple, íconos 3D. */
 :root{
   color-scheme:dark;
   --bg:#09090B; --ink:#F4F4F5; --muted:#9A9AA5; --dim:#6E6E79;
   --card:rgba(255,255,255,.055); --card2:rgba(255,255,255,.085); --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.16);
   --sheet:#111114; --danger:#FF6B6B; --ok:#3EE0B0;
-  --f:"Onest", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --fd:"Bricolage", "Onest", "Segoe UI", system-ui, sans-serif;
+  /* letra tipo Apple: SF Pro en iPhone/Mac; en Android, Inter (la más parecida y de uso libre) */
+  --f:-apple-system, BlinkMacSystemFont, "SF Pro Text", "InterR", "Helvetica Neue", system-ui, sans-serif;
+  --fd:-apple-system, BlinkMacSystemFont, "SF Pro Display", "InterR", "Helvetica Neue", system-ui, sans-serif;
   --ease:cubic-bezier(.2,.8,.2,1);
 }
 .t-gym{--g1:#FF8A5B;--g2:#E8381F;--on:#fff}
@@ -51,7 +51,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 [hidden]{display:none!important}
 :focus-visible{outline:2px solid #fff;outline-offset:2px;border-radius:12px}
 svg.i{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.disp{font-family:var(--fd);letter-spacing:-.035em}
+.disp{font-family:var(--fd);letter-spacing:-.028em}
 .muted{color:var(--muted)}
 .app{position:relative;z-index:1;max-width:520px;margin:0 auto;padding-left:max(18px, env(safe-area-inset-left, 0px));padding-right:max(18px, env(safe-area-inset-right, 0px));padding-block:14px 130px}
 h1,h2,h3{margin:0;text-wrap:balance}
@@ -78,12 +78,12 @@ h1,h2,h3{margin:0;text-wrap:balance}
 /* cabecera Hoy */
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-top:4px}
 .eyebrow{font-size:13px;font-weight:600;color:var(--muted)}
-.top h1{font-family:var(--fd);font-size:34px;font-weight:800;line-height:1;letter-spacing:-.035em;margin-top:7px}
+.top h1{font-family:var(--fd);font-size:34px;font-weight:700;line-height:1;letter-spacing:-.028em;margin-top:7px}
 .ringbox{position:relative;width:78px;height:78px;flex:none}
 .ringbox svg{width:78px;height:78px;transform:rotate(-90deg)}
 .ringbox .v{filter:drop-shadow(0 0 6px #FF6A45)}
 .anim .ringbox .v{animation:ring 1.3s var(--ease) both}
-.ringbox b{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font:800 18px/1 var(--fd)}
+.ringbox b{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font:700 18px/1 var(--fd)}
 .ringbox b small{font:600 9.5px var(--f);letter-spacing:.08em;color:var(--muted);margin-top:3px}
 .week{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:6px;border-radius:24px;margin:18px 0 14px}
 .week button{display:flex;flex-direction:column;align-items:center;gap:1px;padding:7px 0 8px;border-radius:17px;font-size:11.5px;font-weight:600;color:var(--dim);transition:background .2s}
@@ -115,7 +115,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .now::after{content:"";position:absolute;right:-60px;top:-70px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.32),rgba(255,255,255,0) 70%);pointer-events:none}
 .now .lab{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;letter-spacing:.12em;background:rgba(0,0,0,.18);padding:5px 11px;border-radius:999px}
 .now .lab i{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.8s infinite}
-.now h2{font:800 34px/1 var(--fd);letter-spacing:-.035em;margin:12px 0 5px;overflow-wrap:anywhere}
+.now h2{font:700 34px/1 var(--fd);letter-spacing:-.028em;margin:12px 0 5px;overflow-wrap:anywhere}
 .now .meta{font-size:14px;opacity:.9}
 .now .pb{height:7px;border-radius:4px;background:rgba(0,0,0,.2);margin-top:14px;overflow:hidden}
 .now .pb u{display:block;height:100%;border-radius:4px;background:currentColor}
@@ -127,7 +127,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .next{display:flex;align-items:center;gap:10px;border-radius:20px;padding:12px 14px;margin-bottom:12px;font-size:15px}
 .next .pill{margin-left:auto;background:#fff;color:#09090B;font-size:13px;font-weight:700;border-radius:999px;padding:5px 11px;white-space:nowrap}
 .empty{border-radius:28px;padding:30px 22px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
-.empty h3{font:800 24px var(--fd);letter-spacing:-.03em}
+.empty h3{font:700 24px var(--fd);letter-spacing:-.03em}
 .banner{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:12px;border-radius:26px;padding:18px;margin-bottom:12px;background:linear-gradient(150deg,rgba(157,132,255,.22),rgba(91,59,232,.12));border:1px solid rgba(157,132,255,.32)}
 .banner p{margin:0;font-size:15px;line-height:1.45;color:#E4E1FF}
 .skipped{margin-top:12px;font-size:14px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:0 6px}
@@ -156,7 +156,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .head .row1{display:flex;align-items:center;gap:13px}
 .head .hic{width:54px;height:54px;border-radius:18px;background:rgba(0,0,0,.16);display:grid;place-items:center;flex:none}
 .head .hic svg{width:27px;height:27px}
-.head h2{font:800 28px/1.02 var(--fd);letter-spacing:-.035em}
+.head h2{font:700 28px/1.02 var(--fd);letter-spacing:-.028em}
 .head .sub{font-size:14px;opacity:.88;margin-top:4px}
 .head .edit{margin-left:auto;align-self:flex-start;font-weight:700;font-size:14px;padding:8px 14px;border-radius:999px;background:rgba(0,0,0,.18)}
 .sheet .body{max-width:520px;margin:0 auto;padding:20px max(20px, env(safe-area-inset-right, 0px)) 26px max(20px, env(safe-area-inset-left, 0px));display:flex;flex-direction:column;gap:20px}
@@ -186,7 +186,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .info{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:14.5px;color:var(--muted)}
 .info b{color:var(--ink)}
 .focus{display:flex;align-items:center;gap:12px;border-radius:22px;padding:14px 16px;background:var(--card);border:1px solid var(--line)}
-.focus .clock{font:800 34px var(--fd);letter-spacing:-.03em;flex:1;font-variant-numeric:tabular-nums}
+.focus .clock{font:700 34px var(--fd);letter-spacing:-.03em;flex:1;font-variant-numeric:tabular-nums}
 .actions{display:flex;gap:10px}
 .warn{display:flex;gap:8px;align-items:center;font-size:13.5px;color:#FFB4A6;font-weight:600;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.22);border-radius:14px;padding:9px 12px}
 
@@ -220,12 +220,12 @@ h1,h2,h3{margin:0;text-wrap:balance}
 
 /* semana */
 .page-h{padding-top:4px;margin-bottom:18px}
-.page-h h1{font:800 34px/1 var(--fd);letter-spacing:-.035em}
+.page-h h1{font:700 34px/1 var(--fd);letter-spacing:-.028em}
 .page-h p{margin:7px 0 0;color:var(--muted);font-weight:500}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .stat{position:relative;overflow:hidden;border-radius:26px;padding:16px;min-height:118px;display:flex;flex-direction:column;justify-content:space-between;background:var(--grad);color:var(--on);box-shadow:0 0 34px -16px var(--g2)}
 .stat::after{content:"";position:absolute;right:-40px;top:-50px;width:140px;height:140px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.3),rgba(255,255,255,0) 70%)}
-.stat b{font:800 36px/1 var(--fd);letter-spacing:-.03em}
+.stat b{font:700 36px/1 var(--fd);letter-spacing:-.03em}
 .stat span{font-size:13.5px;font-weight:500;opacity:.9}
 .days-list{margin-top:12px;display:flex;flex-direction:column;border-radius:26px;overflow:hidden}
 .dayrow{display:grid;grid-template-columns:58px 1fr 38px;gap:10px;align-items:center;padding:14px 16px;text-align:left;width:100%}
@@ -263,7 +263,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .ob .bar{flex:1;height:5px;border-radius:3px;background:var(--card2);overflow:hidden}
 .ob .bar u{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#9D84FF,#FF6A45);transition:width .4s var(--ease)}
 .ob .count{font-size:13px;font-weight:600;color:var(--muted)}
-.ob h1{font:800 36px/1 var(--fd);letter-spacing:-.04em}
+.ob h1{font:700 36px/1 var(--fd);letter-spacing:-.03em}
 .ob .lead{font-size:16.5px;color:var(--muted);margin:0;line-height:1.45}
 .ob .foot{margin-top:auto;display:flex;flex-direction:column;gap:10px;padding-top:8px}
 .ob .titlerow{display:flex;align-items:center;gap:13px}
@@ -271,9 +271,9 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .tile{position:relative;overflow:hidden;border-radius:24px;padding:15px;height:106px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;font-weight:600;font-size:16.5px;background:var(--card);border:1px solid var(--line);color:#D4D4D8;transition:transform .15s var(--ease), background .2s}
 .tile:active{transform:scale(.96)}
-.tile .ic{width:40px;height:40px;border-radius:13px;background:var(--card2);color:var(--muted);box-shadow:none}
+.tile .ic{width:50px;height:50px;border-radius:16px}
 .tile.on{background:var(--grad);color:var(--on);border-color:transparent;box-shadow:0 0 30px -12px var(--g2)}
-.tile.on .ic{background:rgba(0,0,0,.15);color:var(--on)}
+.tile.on .ic{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3)}
 .tile .tk{position:absolute;top:12px;right:12px;width:24px;height:24px;border-radius:50%;background:#fff;color:#09090B;display:none;place-items:center}
 .tile.on .tk{display:grid;animation:pop .3s var(--ease)}
 .tile .tk svg{width:14px;height:14px;stroke-width:3.2}
@@ -288,10 +288,43 @@ h1,h2,h3{margin:0;text-wrap:balance}
 
 .toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom, 0px));transform:translate(-50%,20px);opacity:0;z-index:60;background:#fff;color:#09090B;padding:12px 18px;border-radius:999px;font-size:14.5px;font-weight:600;transition:all .25s var(--ease);pointer-events:none;max-width:calc(100% - 40px);text-align:center;box-shadow:0 10px 30px -10px rgba(0,0,0,.6)}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+/* ===== vidrio premium ===== */
+.aurora{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.aurora i{position:absolute;border-radius:50%;filter:blur(10px);opacity:.9;animation:drift 22s ease-in-out infinite alternate}
+.aurora i:nth-child(1){left:-25%;top:-12%;width:80vw;height:80vw;max-width:560px;max-height:560px;background:radial-gradient(circle,rgba(124,92,255,.42),rgba(124,92,255,0) 65%)}
+.aurora i:nth-child(2){right:-30%;top:30%;width:85vw;height:85vw;max-width:600px;max-height:600px;background:radial-gradient(circle,rgba(255,96,60,.28),rgba(255,96,60,0) 65%);animation-duration:26s;animation-delay:-8s}
+.aurora i:nth-child(3){left:-20%;bottom:-18%;width:75vw;height:75vw;max-width:520px;max-height:520px;background:radial-gradient(circle,rgba(40,200,190,.22),rgba(40,200,190,0) 65%);animation-duration:30s;animation-delay:-15s}
+@keyframes drift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(6vw,4vh) scale(1.12)}}
+body::before,body::after{display:none}
+.glass,.list,.focus,.q,.days-list,.tile:not(.on),.field input,.field textarea,.next,.empty{
+  background:
+    linear-gradient(165deg,rgba(255,255,255,.11) 0%,rgba(255,255,255,.04) 45%,rgba(255,255,255,.065) 100%) padding-box,
+    linear-gradient(145deg,rgba(255,255,255,.38) 0%,rgba(255,255,255,.07) 30%,rgba(255,255,255,.02) 60%,rgba(255,255,255,.18) 100%) border-box;
+  border:1px solid transparent;
+  -webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 -1px 0 rgba(255,255,255,.03),0 18px 40px -22px rgba(0,0,0,.9);
+}
+.field input:focus,.field textarea:focus{box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 0 2px rgba(255,255,255,.35)}
+.nav .tabs{background:linear-gradient(165deg,rgba(60,60,70,.55),rgba(25,25,30,.6)) padding-box,linear-gradient(145deg,rgba(255,255,255,.35),rgba(255,255,255,.05) 40%,rgba(255,255,255,.15)) border-box;border:1px solid transparent;-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 20px 40px -20px #000}
+.sheet{background:linear-gradient(180deg,rgba(28,28,34,.92),rgba(14,14,18,.97));-webkit-backdrop-filter:blur(30px) saturate(160%);backdrop-filter:blur(30px) saturate(160%)}
+/* íconos 3D sobre una placa de vidrio teñida con el color de la actividad */
+.ic{background:
+    radial-gradient(120% 100% at 30% 0%,rgba(255,255,255,.22),rgba(255,255,255,.02) 60%),
+    linear-gradient(150deg,color-mix(in srgb,var(--g1) 38%,transparent),color-mix(in srgb,var(--g2) 26%,transparent));
+  border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 20px -10px var(--g2)}
+.e3d{width:31px;height:31px;object-fit:contain;filter:drop-shadow(0 4px 6px rgba(0,0,0,.4));-webkit-user-drag:none;pointer-events:none}
+.tile .e3d{width:36px;height:36px}
+.head .hic{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.head .hic .e3d{width:36px;height:36px}
+.ob .titlerow .e3d{width:32px;height:32px}
+.now .lab,.head .edit,.now .done-btn{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.top h1,.page-h h1,.ob h1,.now h2,.head h2{font-weight:700}
+body{font-feature-settings:"kern","calt"}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
 <div class="app" id="app"></div>
 
 <nav class="nav" id="nav" aria-label="Secciones" hidden>
@@ -365,7 +398,8 @@ const SLOTS = Array.from({length:48}, (_,i) => { const m = (240 + i*30) % 1440; 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => Math.random().toString(36).slice(2,9);
-const ico = t => '<svg class="i" viewBox="0 0 24 24">'+(IC[t]||IC.otro)+'</svg>';
+/* íconos 3D: Fluent Emoji de Microsoft (licencia MIT, ver img/LICENSE-fluent-emoji.txt) */
+const ico = t => '<img class="e3d" src="img/'+(IC[t]?t:'otro')+'.png" alt="" draggable="false">';
 const icBox = t => '<span class="ic t-'+t+'">'+ico(t)+'</span>';
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const toMin = t => { const [h,m] = String(t||'0:0').split(':').map(Number); return (h||0)*60 + (m||0); };
@@ -667,7 +701,8 @@ function viewTu(){
     '<section class="lib-sec st"><div class="hd"><h3>Mi semana</h3><button class="link" data-new>+ Agregar</button></div><div class="list">'+(acts||'<div class="li muted">Aún no tienes actividades.</div>')+'</div></section>'+
     '<section class="lib-sec st"><div class="hd"><h3>Rutinas de gym</h3><button class="link" data-edit-routine="">+ Nueva</button></div><div class="list">'+(rs||'<div class="li muted">Crea tu primera rutina o usa una plantilla desde el bloque de Gym.</div>')+'</div></section>'+
     '<section class="lib-sec st"><div class="hd"><h3>Mis clases</h3><button class="link" data-edit-class="">+ Nueva</button></div><div class="list">'+(cs||'<div class="li muted">Agrega tus materias para elegirlas en cada clase.</div>')+'</div></section>'+
-    '<section class="lib-sec st"><button class="btn ghost" data-redo>Volver a armar mi semana</button></section>';
+    '<section class="lib-sec st"><button class="btn ghost" data-redo>Volver a armar mi semana</button></section>'+
+    '<p class="muted st" style="font-size:12px;text-align:center;margin:4px 0 0">Íconos 3D: Fluent Emoji de Microsoft (licencia MIT)</p>';
 }
 
 /* ---------- hoja inferior ---------- */

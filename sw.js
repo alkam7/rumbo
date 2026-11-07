@@ -1,5 +1,5 @@
-const CACHE = 'rumbo-v4';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/apple-touch-icon.png', './fonts/bricolage.woff2', './fonts/onest.woff2'];
+const CACHE = 'rumbo-v5';
+const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/apple-touch-icon.png', './fonts/inter.woff2', './img/gym.png', './img/clase.png', './img/trabajo.png', './img/estudio.png', './img/leer.png', './img/correr.png', './img/meditar.png', './img/proyecto.png', './img/despertar.png', './img/dormir.png', './img/otro.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE))); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', e => {
