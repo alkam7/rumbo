@@ -515,7 +515,8 @@ function streakInfo(a, upto){
 const actStreak = (a, upto) => streakInfo(a, upto).cur;
 function topStreak(upto){
   let top = null;
-  for (const a of S.activities){ const n = actStreak(a, upto); if (n >= 2 && (!top || n > top.n)) top = {a, n}; }
+  // despertar y dormir solo si no hay otra racha: se lucen más gym, clases, lectura...
+  for (const a of S.activities){ const n = actStreak(a, upto), w = n + (a.type === 'despertar' || a.type === 'dormir' ? 0 : 1000); if (n >= 2 && (!top || w > top.w)) top = {a, n, w}; }
   return top;
 }
 const challengeDay = d => Math.floor((dayOnly(d || new Date()) - dayOnly(new Date(L.start))) / DAY) + 1;
@@ -749,7 +750,7 @@ async function makeCard(d){
   // frase
   const who = S.name ? S.name.split(' ')[0] : '';
   const line = pct >= 100 ? (who ? who+' cumplió todo lo que planeó' : 'Cumplí todo lo que planeé') : (who ? who+' lleva '+st.done+' de '+st.total : 'Llevo '+st.done+' de '+st.total);
-  x.fillStyle = '#fff'; x.font = '800 60px '+F; x.fillText(fitText(x, line, W-160), cx, 950);
+  x.fillStyle = '#fff'; { let fs = 60; do { x.font = '800 '+fs+'px '+F; } while (x.measureText(line).width > W-160 && (fs -= 2) > 40); } x.fillText(fitText(x, line, W-160), cx, 950);
   x.textAlign = 'left';
   // lista de actividades
   const show = acts.slice(0, 6), top0 = 1020, rowH = 96, imgs = await Promise.all(show.map(a => loadImg('img/'+(IC[a.type] ? a.type : 'otro')+'.png')));
