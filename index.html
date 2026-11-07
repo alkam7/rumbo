@@ -312,6 +312,24 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .cheer-card{width:100%;max-width:440px;display:flex;align-items:center;gap:14px;padding:14px 18px 14px 14px;border-radius:28px;color:#fff;
   background:linear-gradient(165deg,rgba(60,52,80,.78),rgba(22,20,30,.86)) padding-box,linear-gradient(145deg,rgba(255,255,255,.42),rgba(255,255,255,.06) 40%,rgba(255,140,90,.4)) border-box;border:1px solid transparent;
   -webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 24px 50px -18px rgba(0,0,0,.9),0 0 40px -18px #FF4D2E}
+.fire{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:12.5px;font-weight:700;background:rgba(255,106,69,.16);color:#FFB08F;text-decoration:none;vertical-align:1px}
+.streak{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:22px}
+.streak .fl{font-size:30px;line-height:1}
+.streak div{display:flex;flex-direction:column;gap:2px}
+.streak b{font-size:16.5px}
+.streak span{font-size:13.5px;color:var(--muted)}
+.srow{display:flex;align-items:center;gap:12px}
+.srow .grow{display:flex;flex-direction:column;flex:1;min-width:0}
+.srow .grow span{font-size:13px;color:var(--muted)}
+.srow .sn{font:800 26px var(--fd);color:#FF8A5B}
+.srow .sn::before{content:"🔥 ";font-size:20px}
+.srow .sn.off{color:var(--dim)}
+.sharebtn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;margin-top:14px;padding:15px;border-radius:999px;font-weight:700;font-size:15.5px;color:#fff;background:linear-gradient(150deg,rgba(255,122,80,.22),rgba(201,36,26,.18));border:1px solid rgba(255,122,80,.35)}
+.sharebtn .i{width:20px;height:20px}
+.cshare{align-self:flex-start;margin-top:8px;padding:8px 14px;border-radius:999px;background:#fff;color:#C9241A;font-weight:800;font-size:13.5px}
+.shareprev{display:block;width:min(100%,300px);aspect-ratio:9/16;margin:0 auto;border-radius:22px;box-shadow:0 20px 50px -20px rgba(0,0,0,.8);border:1px solid var(--line2)}
+.shareprev.load{background:linear-gradient(110deg,var(--card) 30%,var(--card2) 50%,var(--card) 70%);background-size:200% 100%;animation:shim 1.2s linear infinite}
+@keyframes shim{to{background-position:-200% 0}}
 .cheer-card.full{background:linear-gradient(150deg,#FF8A5B,#E8381F) padding-box,linear-gradient(145deg,rgba(255,255,255,.6),rgba(255,255,255,.1)) border-box;box-shadow:0 0 60px -12px #FF4D2E}
 .cring{position:relative;width:70px;height:70px;flex:none}
 .cring svg{width:70px;height:70px;transform:rotate(-90deg)}
@@ -481,6 +499,26 @@ const skippedFor = d => S.activities.filter(a => a.days.includes(d.getDay()) && 
 const actById = id => S.activities.find(a => a.id === id);
 const routine = id => S.routines.find(r => r.id === id);
 const klass = id => S.classes.find(c => c.id === id);
+/* racha de una actividad: días seguidos en que tocaba y la hiciste.
+   Los días que no toca o que quitaste no la rompen; hoy, si aún no la haces, tampoco. */
+function streakInfo(a, upto){
+  const end = dayOnly(upto || new Date()); let cur = 0, run = 0, best = 0, open = true;
+  for (let i = 0; i < 120; i++){
+    const d = addDays(end, -i); if (!a.days.includes(d.getDay())) continue;
+    const e = peek(d, a.id); if (e.skip) continue;
+    if (e.done){ run++; if (open) cur = run; }
+    else { if (!(i === 0 && isToday(d))){ open = false; run = 0; } }
+    best = Math.max(best, run);
+  }
+  return {cur, best};
+}
+const actStreak = (a, upto) => streakInfo(a, upto).cur;
+function topStreak(upto){
+  let top = null;
+  for (const a of S.activities){ const n = actStreak(a, upto); if (n >= 2 && (!top || n > top.n)) top = {a, n}; }
+  return top;
+}
+const challengeDay = d => Math.floor((dayOnly(d || new Date()) - dayOnly(new Date(L.start))) / DAY) + 1;
 function dayStats(d){ const acts = actsFor(d); return {total: acts.length, done: acts.filter(a => peek(d,a.id).done).length}; }
 function isNow(a){ const n = nowMin(), s = toMin(a.start); let e = toMin(a.end); if (e <= s) e += 1440; return n >= s && n < e; }
 const routineOf = (d,a) => routine(peek(d,a.id).routineId || a.pref?.routineId);
@@ -673,6 +711,113 @@ const IS_ANDROID = /Android/.test(UA);
 const STANDALONE = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
 const APK_URL = 'https://github.com/alkam7/rumbo/releases/latest/download/Rumbo.apk';
 
+/* ---------- tarjeta de logro para historias (1080×1920) ---------- */
+const SHARE_URL = 'alkam7.github.io/rumbo';
+const loadImg = src => new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+function rrect(x, a, b, w, h, r){ x.beginPath(); x.moveTo(a+r, b); x.arcTo(a+w, b, a+w, b+h, r); x.arcTo(a+w, b+h, a, b+h, r); x.arcTo(a, b+h, a, b, r); x.arcTo(a, b, a+w, b, r); x.closePath(); }
+function fitText(x, t, max){ if (x.measureText(t).width <= max) return t; while (t.length > 1 && x.measureText(t+'…').width > max) t = t.slice(0, -1); return t+'…'; }
+async function makeCard(d){
+  const W = 1080, H = 1920, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  const F = '-apple-system, BlinkMacSystemFont, "SF Pro Display", InterR, "Segoe UI", Roboto, sans-serif';
+  try { await document.fonts.ready; } catch(e){}
+  const acts = actsFor(d), st = dayStats(d), pct = st.total ? Math.round(st.done/st.total*100) : 0, today = isToday(d);
+  // fondo con luces
+  x.fillStyle = '#09090B'; x.fillRect(0, 0, W, H);
+  const glow = (cx, cy, r, col) => { const g = x.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(9,9,11,0)'); x.fillStyle = g; x.fillRect(0, 0, W, H); };
+  glow(180, 260, 760, 'rgba(255,90,54,.42)'); glow(960, 980, 760, 'rgba(110,80,255,.30)'); glow(300, 1800, 700, 'rgba(255,140,60,.18)');
+  // marca
+  const lg = x.createLinearGradient(80, 110, 190, 220); lg.addColorStop(0, '#FF7A50'); lg.addColorStop(1, '#C9241A');
+  rrect(x, 80, 110, 110, 110, 34); x.fillStyle = lg; x.fill();
+  x.save(); x.translate(80+15, 110+15); x.scale(80/24, 80/24); x.strokeStyle = '#fff'; x.lineWidth = 2.8; x.lineCap = 'round'; x.lineJoin = 'round';
+  x.stroke(new Path2D('M4.5 12.5l4.5 4.5L19 7')); x.stroke(new Path2D('M14.5 6.5H19.5V11.5')); x.restore();
+  x.fillStyle = '#fff'; x.font = '800 58px '+F; x.textBaseline = 'middle'; x.fillText('Rumbo', 216, 166);
+  // día del reto
+  const n = challengeDay(d);
+  x.textAlign = 'right'; x.font = '700 34px '+F; x.fillStyle = 'rgba(255,255,255,.7)';
+  x.fillText(cap(DN[d.getDay()])+' '+d.getDate()+' de '+MN[d.getMonth()], W-80, 166); x.textAlign = 'left';
+  const tag = n >= 1 && n <= 14 ? 'RETO 14 DÍAS · DÍA '+n : n > 14 ? 'DÍA '+n+' CON RUMBO' : 'MI DÍA CON RUMBO';
+  x.font = '800 36px '+F; const tw = x.measureText(tag).width + 64;
+  rrect(x, (W-tw)/2, 300, tw, 76, 38); x.fillStyle = 'rgba(255,255,255,.1)'; x.fill(); x.strokeStyle = 'rgba(255,255,255,.22)'; x.lineWidth = 2; x.stroke();
+  x.fillStyle = '#fff'; x.textAlign = 'center'; x.fillText(tag, W/2, 340);
+  // anillo
+  const cx = W/2, cy = 640, R = 210;
+  x.lineCap = 'round'; x.lineWidth = 46; x.strokeStyle = 'rgba(255,255,255,.1)'; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI*2); x.stroke();
+  if (pct > 0){ const rg = x.createLinearGradient(cx-R, cy-R, cx+R, cy+R); rg.addColorStop(0, '#FFB36B'); rg.addColorStop(1, '#FF4D2E');
+    x.strokeStyle = rg; x.shadowColor = 'rgba(255,77,46,.6)'; x.shadowBlur = 40; x.beginPath(); x.arc(cx, cy, R, -Math.PI/2, -Math.PI/2 + Math.PI*2*pct/100); x.stroke(); x.shadowBlur = 0; }
+  x.fillStyle = '#fff'; x.font = '800 150px '+F; x.fillText(pct+'%', cx, cy-6);
+  x.font = '600 38px '+F; x.fillStyle = 'rgba(255,255,255,.7)'; x.fillText(today ? 'de mi día' : 'del día', cx, cy+96);
+  // frase
+  const who = S.name ? S.name.split(' ')[0] : '';
+  const line = pct >= 100 ? (who ? who+' cumplió todo lo que planeó' : 'Cumplí todo lo que planeé') : (who ? who+' lleva '+st.done+' de '+st.total : 'Llevo '+st.done+' de '+st.total);
+  x.fillStyle = '#fff'; x.font = '800 60px '+F; x.fillText(fitText(x, line, W-160), cx, 950);
+  x.textAlign = 'left';
+  // lista de actividades
+  const show = acts.slice(0, 6), top0 = 1020, rowH = 96, imgs = await Promise.all(show.map(a => loadImg('img/'+(IC[a.type] ? a.type : 'otro')+'.png')));
+  rrect(x, 80, top0, W-160, show.length*rowH + 40, 44); x.fillStyle = 'rgba(255,255,255,.06)'; x.fill(); x.strokeStyle = 'rgba(255,255,255,.12)'; x.lineWidth = 2; x.stroke();
+  show.forEach((a, i) => {
+    const y = top0 + 20 + i*rowH, mid = y + rowH/2, done = !!peek(d, a.id).done;
+    if (imgs[i]) x.drawImage(imgs[i], 120, mid-34, 68, 68);
+    x.textBaseline = 'middle'; x.font = '700 40px '+F; x.fillStyle = done ? '#fff' : 'rgba(255,255,255,.45)';
+    x.fillText(fitText(x, a.title, W-470), 214, mid);
+    x.font = '600 32px '+F; x.fillStyle = 'rgba(255,255,255,.5)'; x.textAlign = 'right'; x.fillText(fmtT(a.start).t+' '+fmtT(a.start).P, W-220, mid); x.textAlign = 'left';
+    x.beginPath(); x.arc(W-150, mid, 30, 0, Math.PI*2);
+    if (done){ x.fillStyle = '#FF5A36'; x.fill(); x.save(); x.translate(W-150-18, mid-18); x.scale(36/24, 36/24); x.strokeStyle = '#fff'; x.lineWidth = 3; x.lineCap = 'round'; x.lineJoin = 'round'; x.stroke(new Path2D('M5 12.5l4.5 4.5L19 7.5')); x.restore(); }
+    else { x.strokeStyle = 'rgba(255,255,255,.3)'; x.lineWidth = 4; x.stroke(); }
+  });
+  if (acts.length > show.length){ x.font = '600 30px '+F; x.fillStyle = 'rgba(255,255,255,.5)'; x.textAlign = 'center'; x.fillText('+ '+(acts.length-show.length)+' más', cx, top0 + show.length*rowH + 82); x.textAlign = 'left'; }
+  // racha
+  const tp = topStreak(d), yS = top0 + show.length*rowH + 40 + (acts.length > show.length ? 90 : 50);
+  if (tp){ const t = '🔥 '+fitText(x, tp.a.title, 420)+' · '+tp.n+' seguidas'; x.font = '800 42px '+F; const w2 = x.measureText(t).width + 70;
+    const sg = x.createLinearGradient((W-w2)/2, 0, (W+w2)/2, 0); sg.addColorStop(0, '#FF7A50'); sg.addColorStop(1, '#C9241A');
+    rrect(x, (W-w2)/2, yS, w2, 88, 44); x.fillStyle = sg; x.fill(); x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(t, cx, yS+46); }
+  // pie
+  x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '600 34px '+F; x.fillStyle = 'rgba(255,255,255,.6)';
+  x.fillText('Arma tu semana gratis en '+SHARE_URL, cx, H-48);
+  return c;
+}
+let shareBlob = null;
+async function openShare(d){
+  openSheet({kind:'share', loading:true, d: dkey(d)});
+  try {
+    const c = await makeCard(d);
+    shareBlob = await new Promise(r => c.toBlob(r, 'image/png'));
+    if (sheet && sheet.kind === 'share'){ sheet.loading = false; sheet.url = URL.createObjectURL(shareBlob); renderSheet(); }
+  } catch(e){ console.error(e); toast('No se pudo crear la imagen'); closeSheet(); }
+}
+function sheetShare(){
+  const b = sheet.loading ? '<div class="shareprev load"></div>' :
+    '<img class="shareprev" src="'+sheet.url+'" alt="Tu tarjeta de logro">'+
+    '<button class="btn glow" data-share-go>Compartir en historias</button>'+
+    (NATIVE ? '' : '<button class="btn ghost" data-share-save>Guardar imagen</button>')+
+    '<p class="hint" style="text-align:center">Etiqueta a tus amigos y súmalos al reto de 14 días 💪</p>';
+  return {type:'despertar', html: head('despertar', 'Comparte tu día', 'Muéstrale a todos tu disciplina', '<button class="edit" data-close>Cerrar</button>') + '<div class="body">'+b+'</div>'};
+}
+const SHARE_TEXT = 'Organizo mi día con Rumbo 🔥 Súmate al reto de 14 días: https://'+SHARE_URL+'/';
+async function shareGo(){
+  if (!shareBlob) return;
+  const name = 'rumbo-'+(sheet?.d || dkey(new Date()))+'.png';
+  if (NATIVE){
+    const FS = CAPX.Plugins.Filesystem, SH = CAPX.Plugins.Share;
+    try {
+      const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(shareBlob); });
+      const w = await FS.writeFile({path: name, data: b64, directory: 'CACHE'});
+      await SH.share({title: 'Mi día con Rumbo', text: SHARE_TEXT, files: [w.uri], dialogTitle: 'Compartir mi día'});
+    } catch(e){ if (!/cancel/i.test(String(e && e.message))) toast('No se pudo compartir'); }
+    return;
+  }
+  const file = new File([shareBlob], name, {type: 'image/png'});
+  if (navigator.canShare && navigator.canShare({files: [file]})){
+    try { await navigator.share({files: [file], text: SHARE_TEXT}); } catch(e){}
+    return;
+  }
+  saveShare();
+}
+function saveShare(){
+  if (!shareBlob) return;
+  const a = document.createElement('a'); a.href = URL.createObjectURL(shareBlob); a.download = 'rumbo-'+(sheet?.d || dkey(new Date()))+'.png';
+  document.body.appendChild(a); a.click(); a.remove(); toast('Imagen guardada');
+}
+
 /* ---------- prueba gratis de 14 días y pago único ---------- */
 // Datos para cobrar: los completa el dueño de Rumbo.
 const PAY = {price:'S/ 20', yape:'989714815', name:'Aldair', wa:'51989714815', qr:''};
@@ -792,9 +937,10 @@ function render(){
   app.innerHTML = '<div class="'+(animNext?'anim':'')+'" style="display:flex;flex-direction:column">'+(view === 'hoy' ? viewHoy() : view === 'semana' ? viewSemana() : viewTu())+'</div>';
   animNext = false; tick();
 }
+function fireTag(a, d){ const n = actStreak(a, d); return n >= 2 ? ' <span class="fire">🔥 '+n+'</span>' : ''; }
 function rowHtml(a, d){
   const e = peek(d,a.id), f = fmtT(a.start);
-  return '<li class="row glass st t-'+a.type+(e.done?' done':'')+'"><button class="main" data-open="'+a.id+'"><span class="tm">'+f.t+'<small>'+f.P+'</small></span>'+icBox(a.type)+'<span class="txt"><b>'+esc(a.title)+'</b><span>'+esc(subFor(d,a))+'</span></span></button>'+
+  return '<li class="row glass st t-'+a.type+(e.done?' done':'')+'"><button class="main" data-open="'+a.id+'"><span class="tm">'+f.t+'<small>'+f.P+'</small></span>'+icBox(a.type)+'<span class="txt"><b>'+esc(a.title)+fireTag(a,d)+'</b><span>'+esc(subFor(d,a))+'</span></span></button>'+
     '<button class="tick" data-done="'+a.id+'" aria-pressed="'+!!e.done+'" aria-label="Marcar '+esc(a.title)+' como hecha"><span>'+CHECK+'</span></button></li>';
 }
 function nowHtml(a, d){
@@ -826,7 +972,7 @@ function viewHoy(){
   return '<header class="top st"><div><div class="eyebrow">'+cap(DN[sel.getDay()])+' '+sel.getDate()+' de '+MN[sel.getMonth()]+'</div><h1>'+title+'</h1></div>'+
       '<div class="ringbox"><svg viewBox="0 0 110 110"><circle cx="55" cy="55" r="48" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="10"/><circle class="v" cx="55" cy="55" r="48" fill="none" stroke="#FF6A45" stroke-width="10" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+(C*(1-pct))+'" style="--c0:'+C+'"/></svg><b>'+st.done+'/'+st.total+'<small>HECHAS</small></b></div></header>'+
     '<nav class="week glass st" aria-label="Días de la semana">'+week+'</nav>'+ banner() + next +
-    (acts.length ? '<ol class="blocks">'+list+'</ol>' : '<div class="empty glass st"><h3>Día libre</h3><p class="muted" style="margin:0">No tienes nada el '+DN[sel.getDay()]+'. Agrega algo con el botón +.</p></div>') + skHtml;
+    (acts.length ? '<ol class="blocks">'+list+'</ol>'+(st.done && sel <= new Date() ? '<button class="sharebtn st" data-share><svg class="i" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Compartir mi día</button>' : '') : '<div class="empty glass st"><h3>Día libre</h3><p class="muted" style="margin:0">No tienes nada el '+DN[sel.getDay()]+'. Agrega algo con el botón +.</p></div>') + skHtml;
 }
 function viewSemana(){
   const ws = weekStart(new Date()), we = addDays(ws,6); let tot = 0, done = 0, focus = 0, gym = 0;
@@ -844,6 +990,8 @@ function viewSemana(){
       '<div class="stat t-clase"><b>'+fmtDur(focus)+'</b><span>de enfoque</span></div>'+
       '<div class="stat t-leer"><b>'+gym+'</b><span>'+(gym===1?'entrenamiento':'entrenamientos')+'</span></div></div>'+
     '<div class="days-list glass st">'+rows+'</div>'+
+    (() => { const list = S.activities.map(a => ({a, ...streakInfo(a)})).filter(x => x.best >= 1).sort((x,y) => y.cur - x.cur || y.best - x.best);
+      return list.length ? '<section class="lib-sec st" style="margin-top:18px"><h3>Tus rachas 🔥</h3><div class="list">'+list.map(x => '<div class="li srow">'+icBox(x.a.type)+'<span class="grow"><b>'+esc(x.a.title)+'</b><span>Récord: '+x.best+'</span></span><span class="sn'+(x.cur ? '' : ' off')+'">'+x.cur+'</span></div>').join('')+'</div></section>' : ''; })()+
     '<p class="muted st" style="font-size:14px;margin:14px 4px 0">Un día suma a tu racha cuando haces al menos el 80% de lo que planeaste.</p>';
 }
 function viewTu(){
@@ -878,7 +1026,7 @@ function closeSheet(){ const sc = $('#scrim'), sh = $('#sheet'); sc.classList.re
 function renderSheet(){
   if (!sheet) return;
   const sh = $('#sheet'), y = sh.scrollTop, k = sheet.kind;
-  const out = k === 'act' ? sheetAct() : k === 'edit' ? sheetEdit() : k === 'routine' ? sheetRoutine() : sheetClass();
+  const out = k === 'act' ? sheetAct() : k === 'edit' ? sheetEdit() : k === 'routine' ? sheetRoutine() : k === 'share' ? sheetShare() : sheetClass();
   sh.className = 'sheet open t-'+out.type; sh.innerHTML = out.html; sh.scrollTop = y; centerStrips(sh); tick();
 }
 const head = (type, title, sub, extra) => '<div class="head"><div class="in"><div class="grab"></div><div class="row1"><span class="hic">'+ico(type)+'</span><div style="min-width:0"><h2>'+title+'</h2>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>'+(extra||'')+'</div></div></div>';
@@ -926,6 +1074,8 @@ function sheetAct(){
         '<div class="chips">'+[25,50].map(m => '<button data-focus-len="'+m+'" aria-pressed="'+(focusLen===m)+'">'+m+'</button>').join('')+'</div><button class="btn sm" data-focus-start>Iniciar</button>')+
       '</div>'+(e.focus?'<p class="hint" style="margin-top:2px">Hoy llevas '+fmtDur(e.focus)+' de enfoque aquí.</p>':'')+'</div>';
   }
+  { const sk = streakInfo(base, sel);
+    b += '<div class="streak glass"><span class="fl">🔥</span><div><b>'+(sk.cur ? sk.cur+(sk.cur === 1 ? ' vez' : ' veces')+' seguidas' : 'Empieza tu racha hoy')+'</b><span>'+(sk.best > sk.cur ? 'Tu récord: '+sk.best+'. ¡Vas por él!' : sk.cur >= 2 ? '¡Es tu récord! No la rompas.' : 'Cada vez que la cumples, suma.')+'</span></div></div>'; }
   b += '<button class="btn '+(e.done?'ghost':'glow')+'" data-done="'+a.id+'">'+(e.done?'Hecha · desmarcar':'Marcar como hecha')+'</button>';
   const dn = isToday(sel) ? 'hoy' : 'ese día';
   if (!sheet.once){
@@ -1092,7 +1242,7 @@ function cheerFor(pct){
   return {tier, title: CHEER_TITLE[tier], msg};
 }
 let cheerT;
-function celebrate(d, prevPct){
+function celebrate(d, prevPct, actId){
   const st = dayStats(d), pct = st.total ? Math.round(st.done/st.total*100) : 0;
   if (S.cheerOff){ toast(pct >= 100 ? 'Día completo' : 'Hecha · '+st.done+' de '+st.total); return; }
   const c = cheerFor(pct), when = isToday(d) ? 'de tu día' : 'del '+DN[d.getDay()];
@@ -1111,14 +1261,16 @@ function celebrate(d, prevPct){
   el.innerHTML = '<div class="cheer-card'+(c.tier==='full'?' full':'')+'"><div class="cring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="9"/>'+
     '<circle class="v" cx="50" cy="50" r="44" fill="none" stroke="url(#cg)" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+C+'" stroke-dashoffset="'+(C*(1-prevPct/100))+'"/>'+
     '<defs><linearGradient id="cg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB36B"/><stop offset="1" stop-color="#FF4D2E"/></linearGradient></defs></svg><b data-pct>'+prevPct+'%</b></div>'+
-    '<div class="ctext"><span class="ct">'+c.title+'</span><p>'+esc(c.msg)+'</p><small>'+st.done+' de '+st.total+' actividades '+when+'</small></div></div>';
+    '<div class="ctext"><span class="ct">'+c.title+'</span><p>'+esc(c.msg)+'</p><small>'+st.done+' de '+st.total+' actividades '+when+
+    (() => { const a = actId && actById(actId), n = a ? actStreak(a, d) : 0; return n >= 2 ? ' · 🔥 '+esc(a.title)+': '+n+' seguidas' : ''; })()+'</small>'+
+    (pct >= 100 ? '<button class="cshare" data-share>Compartir mi día</button>' : '')+'</div></div>';
   el.hidden = false; requestAnimationFrame(() => { el.classList.add('show');
     setTimeout(() => { const v = el.querySelector('.v'); if (v) v.style.strokeDashoffset = C*(1-pct/100);
       const b = el.querySelector('[data-pct]'), t0 = performance.now();
       const step = t => { const k = Math.min(1,(t-t0)/900), e = 1-Math.pow(1-k,3); if (b) b.textContent = Math.round(prevPct + (pct-prevPct)*e)+'%'; if (k < 1) requestAnimationFrame(step); };
       requestAnimationFrame(step); }, 120); });
   if (pct >= 100) buzz('HEAVY');
-  clearTimeout(cheerT); cheerT = setTimeout(hideCheer, pct >= 100 ? 4200 : 3200);
+  clearTimeout(cheerT); cheerT = setTimeout(hideCheer, pct >= 100 ? 6500 : 3200);
 }
 function hideCheer(){ const el = $('#cheer'); el.classList.remove('show'); setTimeout(() => { if (!el.classList.contains('show')) el.hidden = true; }, 300); }
 
@@ -1157,6 +1309,7 @@ function syncAny(p){ if (p === 'dr' || p === 'once') syncDraft(); else syncOb();
 document.addEventListener('click', ev => {
   if (ev.target.closest('[data-pay-wa]')){ L.asked = Date.now(); saveL(); setTimeout(() => { if (!$('#pay').hidden) renderPay(!locked()); }, 600); return; }
   if (ev.target.id === 'scrim'){ closeSheet(); return; }
+  if (ev.target.closest('#cheer [data-share]')){ hideCheer(); openShare(sel); return; }
   if (ev.target.closest('#cheer')){ hideCheer(); return; }
   const b = ev.target.closest('button, [data-open]'); if (!b) return;
   const D = b.dataset;
@@ -1184,6 +1337,9 @@ document.addEventListener('click', ev => {
   if (D.obcount){ syncOb(); ob.count[D.obcount] = +D.v; buzz(); rerender('ob'); return; }
   if ('obFinish' in D){ syncOb(); const it = obItem(obSteps()[ob.step-4]); if (!it.days.length){ toast('Elige al menos un día'); return; } finishOnboarding(); return; }
   if ('redo' in D){ startOnboarding(true); return; }
+  if ('share' in D){ openShare(sel); return; }
+  if ('shareGo' in D){ shareGo(); return; }
+  if ('shareSave' in D){ saveShare(); return; }
   if ('payOpen' in D){ renderPay(true); return; }
   if ('payClose' in D){ hidePay(); return; }
   if ('payUnlock' in D){ unlock(); return; }
@@ -1194,7 +1350,7 @@ document.addEventListener('click', ev => {
   if (D.goto){ sel = new Date(D.goto+'T00:00'); view = 'hoy'; animNext = true; render(); window.scrollTo(0,0); return; }
   if (D.done){ ev.stopPropagation(); const s0 = dayStats(sel), prev = s0.total ? Math.round(s0.done/s0.total*100) : 0;
     const e = entry(sel, D.done); e.done = !e.done; save(); buzz(e.done ? 'MEDIUM' : 'LIGHT');
-    if (e.done) celebrate(sel, prev);
+    if (e.done) celebrate(sel, prev, D.done);
     sheet ? closeSheet() : render(); return; }
   if (D.open){ openSheet({kind:'act', id:D.open}); return; }
   if ('close' in D){ if (sheet && sheet.back){ sheet = {kind:'act', id:sheet.back}; renderSheet(); } else closeSheet(); return; }
