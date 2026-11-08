@@ -736,7 +736,7 @@ async function makeCard(d){
   const n = challengeDay(d);
   x.textAlign = 'right'; x.font = '700 34px '+F; x.fillStyle = 'rgba(255,255,255,.7)';
   x.fillText(cap(DN[d.getDay()])+' '+d.getDate()+' de '+MN[d.getMonth()], W-80, 166); x.textAlign = 'left';
-  const tag = n >= 1 && n <= 14 ? 'RETO 14 DÍAS · DÍA '+n : n > 14 ? 'DÍA '+n+' CON RUMBO' : 'MI DÍA CON RUMBO';
+  const tag = n >= 1 && n <= 21 ? 'RETO 21 DÍAS · DÍA '+n : n > 21 ? 'DÍA '+n+' CON RUMBO' : 'MI DÍA CON RUMBO';
   x.font = '800 36px '+F; const tw = x.measureText(tag).width + 64;
   rrect(x, (W-tw)/2, 300, tw, 76, 38); x.fillStyle = 'rgba(255,255,255,.1)'; x.fill(); x.strokeStyle = 'rgba(255,255,255,.22)'; x.lineWidth = 2; x.stroke();
   x.fillStyle = '#fff'; x.textAlign = 'center'; x.fillText(tag, W/2, 340);
@@ -790,10 +790,10 @@ function sheetShare(){
     '<img class="shareprev" src="'+sheet.url+'" alt="Tu tarjeta de logro">'+
     '<button class="btn glow" data-share-go>Compartir en historias</button>'+
     (NATIVE ? '' : '<button class="btn ghost" data-share-save>Guardar imagen</button>')+
-    '<p class="hint" style="text-align:center">Etiqueta a tus amigos y súmalos al reto de 14 días 💪</p>';
+    '<p class="hint" style="text-align:center">Etiqueta a tus amigos y súmalos al reto de 21 días 💪</p>';
   return {type:'despertar', html: head('despertar', 'Comparte tu día', 'Muéstrale a todos tu disciplina', '<button class="edit" data-close>Cerrar</button>') + '<div class="body">'+b+'</div>'};
 }
-const SHARE_TEXT = 'Organizo mi día con Rumbo 🔥 Súmate al reto de 14 días: https://'+SHARE_URL+'/';
+const SHARE_TEXT = 'Organizo mi día con Rumbo 🔥 Súmate al reto de 21 días: https://'+SHARE_URL+'/';
 async function shareGo(){
   if (!shareBlob) return;
   const name = 'rumbo-'+(sheet?.d || dkey(new Date()))+'.png';
@@ -819,10 +819,10 @@ function saveShare(){
   document.body.appendChild(a); a.click(); a.remove(); toast('Imagen guardada');
 }
 
-/* ---------- prueba gratis de 14 días y pago único ---------- */
+/* ---------- prueba gratis de 21 días y pago único ---------- */
 // Datos para cobrar: los completa el dueño de Rumbo.
 const PAY = {price:'S/ 20', yape:'989714815', name:'Aldair', wa:'51989714815', qr:''};
-const TRIAL_DAYS = 14, DAY = 864e5, LIC = 'rumbo-lic';
+const TRIAL_DAYS = 21, DAY = 864e5, LIC = 'rumbo-lic';
 const L = (() => {
   let o = null; try { o = JSON.parse(localStorage.getItem(LIC)); } catch(e){}
   if (!o || !/^RB-[2-9A-HJKMNP-Z]{6}$/.test(o.id)){
@@ -845,7 +845,7 @@ function renderPay(closable){
   box.innerHTML = '<div class="in anim" style="position:relative">'+
     (closable ? '<button class="back x" data-pay-close aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>' : '')+
     '<div class="hero-logo st"><svg class="i" viewBox="0 0 24 24" style="stroke-width:2.8"><path d="M4.5 12.5l4.5 4.5L19 7"/><path d="M14.5 6.5H19.5V11.5"/></svg></div>'+
-    '<h1 class="st">'+(lk ? 'Tus 2 semanas gratis terminaron' : 'Quédate con Rumbo para siempre')+'</h1>'+
+    '<h1 class="st">'+(lk ? 'Tus 21 días gratis terminaron' : 'Quédate con Rumbo para siempre')+'</h1>'+
     '<p class="lead st">'+(lk ? (S.name ? esc(S.name)+', tu' : 'Tu')+' semana y tu progreso siguen guardados. Desbloquea Rumbo para seguir usándola.' : 'Te '+(left === 1 ? 'queda 1 día' : 'quedan '+left+' días')+' gratis. Paga una sola vez y es tuya para siempre.')+'</p>'+
     '<div class="price glass st"><b>'+PAY.price+'</b><span>Pago único.<br>Sin mensualidades.</span></div>'+
     '<div class="pstep glass st"><i>1</i><div>'+step1+'</div></div>'+
