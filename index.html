@@ -713,7 +713,7 @@ const STANDALONE = (window.matchMedia && matchMedia('(display-mode: standalone)'
 const APK_URL = 'https://github.com/alkam7/rumbo/releases/latest/download/Rumbo.apk';
 
 /* ---------- tarjeta de logro para historias (1080×1920) ---------- */
-const SHARE_URL = 'alkam7.github.io/rumbo';
+const SHARE_URL = 'rumbo-app-a84.pages.dev';
 const loadImg = src => new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
 function rrect(x, a, b, w, h, r){ x.beginPath(); x.moveTo(a+r, b); x.arcTo(a+w, b, a+w, b+h, r); x.arcTo(a+w, b+h, a, b+h, r); x.arcTo(a, b+h, a, b, r); x.arcTo(a, b, a+w, b, r); x.closePath(); }
 function fitText(x, t, max){ if (x.measureText(t).width <= max) return t; while (t.length > 1 && x.measureText(t+'…').width > max) t = t.slice(0, -1); return t+'…'; }
